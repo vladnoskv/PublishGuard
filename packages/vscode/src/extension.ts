@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as nodeFs from 'node:fs';
 import { scan, generateSafeIgnoreFile } from '@publishguard/core';
 import type { ScanResult, Issue } from '@publishguard/core';
 import { PublishGuardTreeProvider } from './tree-view';
@@ -418,12 +419,15 @@ async function installPreCommitHook(): Promise<void> {
   const hook = [
     '#!/bin/sh',
     'set -eu',
-    'files=$(git diff --cached --name-only --diff-filter=ACMR)',
-    '[ -z "$files" ] && exit 0',
-    'npx publishguard scan --staged --fail-on error',
+    'if [ -x "./node_modules/.bin/publishguard" ]; then',
+    '  ./node_modules/.bin/publishguard scan --staged --fail-on error',
+    'else',
+    '  npx --no-install publishguard scan --staged --fail-on error',
+    'fi',
     '',
   ].join('\n');
   await vscode.workspace.fs.writeFile(hookUri, Buffer.from(hook, 'utf-8'));
+  await nodeFs.promises.chmod(hookUri.fsPath, 0o755).catch(() => undefined);
   vscode.window.showInformationMessage('PublishGuard: Pre-commit hook installed.');
 }
 

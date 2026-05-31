@@ -147,20 +147,9 @@ function getScanFiles(options: {
     files = files.filter((file) => stagedSet.has(file));
   }
 
-  if (!options.includeGitIgnored) {
-    const gitIgnore = loadGitIgnore(options.projectRoot);
-    if (gitIgnore) {
-      files = files.filter((file) => !gitIgnore.ignores(file));
-    }
-  }
-
+  // Published/exposed files are the authority for content scans. Gitignored
+  // files are noise only after package resolution has excluded them.
   return files;
-}
-
-function loadGitIgnore(rootDir: string): ReturnType<typeof ignore> | null {
-  const gitignorePath = path.join(rootDir, '.gitignore');
-  if (!fs.existsSync(gitignorePath)) return null;
-  return ignore().add(fs.readFileSync(gitignorePath, 'utf-8'));
 }
 
 function normalizeFile(file: string, projectRoot?: string): string {
