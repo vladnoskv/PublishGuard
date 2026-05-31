@@ -16,6 +16,7 @@ coverage
 Thumbs.db
 *.log
 .turbo
+.npm-cache
 secrets*
 *.test.*
 

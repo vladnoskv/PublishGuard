@@ -17,7 +17,11 @@
     "commands": [
       {
         "command": "publishguard.scan",
-        "title": "PublishGuard: Scan Project"
+        "title": "PublishGuard: Scan Project",
+        "icon": {
+          "light": "resources/icon-light.svg",
+          "dark": "resources/icon-dark.svg"
+        }
       },
       {
         "command": "publishguard.fix",
