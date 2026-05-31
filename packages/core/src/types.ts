@@ -8,6 +8,7 @@ export type Category =
   | 'manifest'
   | 'metadata'
   | 'file-size'
+  | 'dependencies'
   | 'sensitive-file'
   | 'unknown';
 

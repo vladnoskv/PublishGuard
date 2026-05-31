@@ -2,7 +2,7 @@
 
 **Pre-publish safety scanner for npm packages and VS Code extensions.**
 
-Catch secrets, sensitive files, metadata issues, and missing ignore rules before you publish — right inside VS Code or from your CI pipeline.
+Catch secrets, sensitive files, metadata issues, risky dependency specifiers, and missing ignore rules before you publish — right inside VS Code or from your CI pipeline.
 
 <p align="center">
   <strong>Publisher: VladNoskov</strong>
@@ -10,18 +10,13 @@ Catch secrets, sensitive files, metadata issues, and missing ignore rules before
 
 ## VS Code Extension
 
-Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/) (publisher: **VladNoskov**) or side-load the `.vsix`:
-
-```bash
-code --install-extension publishguard-0.1.0.vsix
-```
-
+Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/) (publisher: **VladNoskov**)
 ### How It Works
 
 1. Open any workspace with a `package.json` — PublishGuard activates automatically
 2. Click the shield icon in the activity bar, or press `Ctrl+Shift+P` → **PublishGuard: Scan Project**
 3. Issues appear in the sidebar and Problems panel with quick-fix suggestions
-4. The extension auto-scans whenever you save `package.json`
+4. Open **PublishGuard: Open Settings** to manage scan behavior, ignored globs, and reviewed false positives
 
 ### Commands
 
@@ -31,6 +26,7 @@ code --install-extension publishguard-0.1.0.vsix
 | `PublishGuard: Auto-Fix Issues` | Automatically add missing ignore rules |
 | `PublishGuard: Generate Ignore Files` | Create safe `.npmignore` / `.vscodeignore` |
 | `PublishGuard: Show Issues` | Focus the PublishGuard sidebar view |
+| `PublishGuard: Open Settings` | Open the PublishGuard settings webview |
 
 ### Settings
 
@@ -49,6 +45,7 @@ code --install-extension publishguard-0.1.0.vsix
 - **Manifest validation** — `package.json` completeness (name, version, description, repository, license, publisher, icon, engines)
 - **Metadata checks** — README, LICENSE, CHANGELOG presence
 - **File size warnings** — Warns at 5 MB, errors at 50 MB per file
+- **Dependency risk checks** — Warns about floating versions such as `latest` / `*` and non-registry sources such as GitHub, URL, file, link, and workspace specs. Suggestions include Socket.dev package links for confirmation and extra supply-chain context.
 
 ## CLI (CI/CD)
 
@@ -58,6 +55,8 @@ publishguard scan                  # Pretty output
 publishguard scan --json           # JSON output
 publishguard scan --ci             # GitHub Actions annotations
 publishguard scan --fail-on error  # Exit non-zero on errors
+publishguard scan --dependency-audit # Confirm known vulnerabilities with npm audit
+publishguard scan --socket-dev      # Confirm supply-chain alerts with Socket.dev CLI
 publishguard init                  # Generate safe ignore files
 publishguard fix                   # Auto-fix common issues
 publishguard fix --dry-run         # Preview fixes
@@ -92,9 +91,28 @@ Create a `.publishguardrc.json` in your project root:
     "warnThreshold": "5MB",
     "errorThreshold": "50MB"
   },
-  "ignore": ["**/fixtures/**"]
+  "dependencyAudit": {
+    "enabled": false
+  },
+  "socketDev": {
+    "enabled": false
+  },
+  "ignore": ["**/fixtures/**"],
+  "suppressions": [
+    {
+      "rule": "jwt-token",
+      "file": "test/fixtures/**",
+      "reason": "Reviewed test fixture; not a real token"
+    }
+  ]
 }
 ```
+
+Use `ignore` for file globs you never want PublishGuard to scan or report. Use `suppressions` for reviewed false positives; each suppression must include a reason and can match by `rule`, `file`, and/or `fingerprint`.
+
+Dependency audits are opt-in because they can contact the npm registry and take longer than local checks. Enable them with `publishguard scan --dependency-audit`, set `dependencyAudit.enabled` in `.publishguardrc.json`, or turn on **Run npm audit to confirm vulnerable dependencies** in the VS Code settings webview.
+
+Socket.dev confirmation is also opt-in and requires the Socket CLI to be installed and configured. Enable it with `publishguard scan --socket-dev`, set `socketDev.enabled`, or turn on **Run Socket.dev CLI confirmation for supply-chain alerts** in the settings webview. PublishGuard reports medium, high, and critical Socket alerts while ignoring low-severity alerts by default to reduce noise.
 
 ## Packages
 

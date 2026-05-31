@@ -16,6 +16,8 @@ export const scanCommand = new Command('scan')
   .option('--package-type <type>', 'Force package type: npm, vscode, or both')
   .option('--staged', 'Only scan files staged for commit')
   .option('--include-gitignored', 'Include files matched by .gitignore in secret and size scans')
+  .option('--dependency-audit', 'Run npm audit and report known vulnerable dependencies')
+  .option('--socket-dev', 'Run Socket.dev CLI confirmation for medium/high supply-chain alerts')
   .action(async (dir: string, opts) => {
     const projectRoot = path.resolve(dir);
     const stagedFiles = opts.staged ? getStagedFiles(projectRoot) : undefined;
@@ -25,6 +27,8 @@ export const scanCommand = new Command('scan')
       packageType: opts.packageType as 'npm' | 'vscode' | 'both' | undefined,
       stagedFiles,
       includeGitIgnored: Boolean(opts.includeGitignored),
+      dependencyAudit: Boolean(opts.dependencyAudit),
+      socketDev: Boolean(opts.socketDev),
     });
 
     if (opts.json) {

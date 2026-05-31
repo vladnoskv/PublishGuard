@@ -11,6 +11,7 @@ export {
 } from './scanners/ignore-validator';
 export { scanManifest } from './scanners/manifest';
 export { scanFileSizes } from './scanners/file-size';
+export { scanDependencies } from './scanners/dependencies';
 export { generateSarifReport } from './reporters/sarif-reporter';
 export { loadConfig } from './config';
 export type { ScanResult, Issue, Severity, Category } from './types';

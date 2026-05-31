@@ -9,6 +9,8 @@ export interface ScanOptions {
   failFast?: boolean;
   stagedFiles?: string[];
   includeGitIgnored?: boolean;
+  dependencyAudit?: boolean;
+  socketDev?: boolean;
 }
 
 export interface SuppressionConfig {
@@ -28,6 +30,12 @@ export interface PublishGuardConfig {
   fileSize?: {
     warnThreshold: string;
     errorThreshold: string;
+  };
+  dependencyAudit?: {
+    enabled: boolean;
+  };
+  socketDev?: {
+    enabled: boolean;
   };
 }
 
@@ -102,12 +110,24 @@ const DEFAULT_CONFIG: PublishGuardConfig = {
     'vscode-settings': 'info',
     'coverage': 'warning',
     'temp-file': 'info',
+    'dependency-floating-version': 'warning',
+    'dependency-non-registry-source': 'warning',
+    'dependency-vulnerability': 'error',
+    'dependency-audit-unavailable': 'warning',
+    'dependency-socket-alert': 'error',
+    'dependency-socket-unavailable': 'warning',
   },
   ignore: [],
   suppressions: [],
   fileSize: {
     warnThreshold: '5MB',
     errorThreshold: '50MB',
+  },
+  dependencyAudit: {
+    enabled: false,
+  },
+  socketDev: {
+    enabled: false,
   },
 };
 
@@ -128,6 +148,10 @@ function mergeConfig(base: PublishGuardConfig, override: Partial<PublishGuardCon
   const defaultFileSize = { warnThreshold: '5MB', errorThreshold: '50MB' };
   const baseFS = base.fileSize ?? defaultFileSize;
   const overrideFS = (override.fileSize ?? {}) as Partial<typeof defaultFileSize>;
+  const baseAudit = base.dependencyAudit ?? { enabled: false };
+  const overrideAudit = (override.dependencyAudit ?? {}) as Partial<{ enabled: boolean }>;
+  const baseSocketDev = base.socketDev ?? { enabled: false };
+  const overrideSocketDev = (override.socketDev ?? {}) as Partial<{ enabled: boolean }>;
   return {
     rules: { ...base.rules, ...override.rules },
     ignore: [...base.ignore, ...(override.ignore ?? [])],
@@ -136,6 +160,12 @@ function mergeConfig(base: PublishGuardConfig, override: Partial<PublishGuardCon
     fileSize: {
       warnThreshold: overrideFS.warnThreshold ?? baseFS.warnThreshold,
       errorThreshold: overrideFS.errorThreshold ?? baseFS.errorThreshold,
+    },
+    dependencyAudit: {
+      enabled: overrideAudit.enabled ?? baseAudit.enabled,
+    },
+    socketDev: {
+      enabled: overrideSocketDev.enabled ?? baseSocketDev.enabled,
     },
   };
 }

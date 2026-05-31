@@ -4,6 +4,7 @@ import { scan, generateSafeIgnoreFile } from '@publishguard/core';
 import type { ScanResult, Issue } from '@publishguard/core';
 import { PublishGuardTreeProvider } from './tree-view';
 import { PublishGuardQuickFix } from './quick-fix';
+import { buildSettingsWebviewHtml } from './settings-webview';
 
 let diagnosticCollection: vscode.DiagnosticCollection;
 let treeProvider: PublishGuardTreeProvider;
@@ -45,9 +46,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('publishguard.openSettings', () =>
-      vscode.commands.executeCommand('workbench.action.openSettings', 'publishguard'),
-    ),
+    vscode.commands.registerCommand('publishguard.openSettings', () => openSettingsWebview(context)),
   );
 
   context.subscriptions.push(
@@ -210,7 +209,11 @@ async function runScan(): Promise<ScanResult | null> {
 
         progress.report({ message: 'Scanning secrets and package risks...' });
         treeProvider.setScanning('Scanning secrets and package risks...');
-        const scanResult = await scan({ projectRoot: workspaceFolders[0].uri.fsPath });
+        const scanResult = await scan({
+          projectRoot: workspaceFolders[0].uri.fsPath,
+          dependencyAudit: getDependencyAuditEnabled(),
+          socketDev: getSocketDevEnabled(),
+        });
 
         progress.report({ message: 'Preparing report...' });
         treeProvider.setScanning('Preparing report...');
@@ -445,6 +448,137 @@ async function readJsonObject(uri: vscode.Uri): Promise<Record<string, unknown>>
   } catch {
     return {};
   }
+}
+
+async function openSettingsWebview(context: vscode.ExtensionContext): Promise<void> {
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+  if (!workspaceFolder) {
+    vscode.window.showWarningMessage('PublishGuard: Open a workspace folder to edit settings.');
+    return;
+  }
+
+  const panel = vscode.window.createWebviewPanel(
+    'publishguardSettings',
+    'PublishGuard Settings',
+    vscode.ViewColumn.One,
+    { enableScripts: true },
+  );
+
+  const render = async () => {
+    const config = vscode.workspace.getConfiguration('publishguard');
+    const rc = await readJsonObject(vscode.Uri.joinPath(workspaceFolder.uri, '.publishguardrc.json'));
+    panel.webview.html = buildSettingsWebviewHtml({
+      nonce: createNonce(),
+      scanOnSave: config.get<boolean>('scanOnSave', true),
+      blockPublishOnError: config.get<boolean>('blockPublishOnError', true),
+      dependencyAudit: getDependencyAuditEnabled(),
+      socketDev: getSocketDevEnabled(),
+      severityThreshold: getSeverityThreshold(),
+      ignore: Array.isArray(rc.ignore) ? rc.ignore.filter((item): item is string => typeof item === 'string') : [],
+      suppressions: Array.isArray(rc.suppressions)
+        ? rc.suppressions.filter(isSuppressionLike)
+        : [],
+    });
+  };
+
+  panel.webview.onDidReceiveMessage(async (message: unknown) => {
+    if (!isSettingsMessage(message)) return;
+    const saved = await saveSettingsMessage(workspaceFolder.uri, message);
+    if (!saved) return;
+    vscode.window.showInformationMessage('PublishGuard: Settings saved.');
+    await render();
+    if (message.command === 'runScan') {
+      await runScan();
+    }
+  }, undefined, context.subscriptions);
+
+  await render();
+}
+
+async function saveSettingsMessage(workspaceUri: vscode.Uri, message: SettingsMessage): Promise<boolean> {
+  const workspaceConfig = vscode.workspace.getConfiguration('publishguard');
+  await workspaceConfig.update('scanOnSave', message.scanOnSave, vscode.ConfigurationTarget.Workspace);
+  await workspaceConfig.update('blockPublishOnError', message.blockPublishOnError, vscode.ConfigurationTarget.Workspace);
+  await workspaceConfig.update('severityThreshold', message.severityThreshold, vscode.ConfigurationTarget.Workspace);
+  await workspaceConfig.update('dependencyAudit', message.dependencyAudit, vscode.ConfigurationTarget.Workspace);
+  await workspaceConfig.update('socketDev', message.socketDev, vscode.ConfigurationTarget.Workspace);
+
+  let suppressions: unknown;
+  try {
+    suppressions = JSON.parse(message.suppressions || '[]');
+  } catch {
+    vscode.window.showErrorMessage('PublishGuard: Suppressions must be valid JSON.');
+    return false;
+  }
+  if (!Array.isArray(suppressions) || !suppressions.every(isSuppressionLike)) {
+    vscode.window.showErrorMessage('PublishGuard: Suppressions must be an array with a reason on each entry.');
+    return false;
+  }
+
+  const configUri = vscode.Uri.joinPath(workspaceUri, '.publishguardrc.json');
+  const rc = await readJsonObject(configUri);
+  rc.ignore = message.ignore
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  rc.suppressions = suppressions;
+  await vscode.workspace.fs.writeFile(configUri, Buffer.from(`${JSON.stringify(rc, null, 2)}\n`, 'utf-8'));
+  return true;
+}
+
+interface SettingsMessage {
+  command: 'saveSettings' | 'runScan';
+  scanOnSave: boolean;
+  blockPublishOnError: boolean;
+  dependencyAudit: boolean;
+  socketDev: boolean;
+  severityThreshold: Issue['severity'];
+  ignore: string;
+  suppressions: string;
+}
+
+function isSettingsMessage(value: unknown): value is SettingsMessage {
+  if (!value || typeof value !== 'object') return false;
+  const message = value as Partial<SettingsMessage>;
+  return (
+    (message.command === 'saveSettings' || message.command === 'runScan') &&
+    typeof message.scanOnSave === 'boolean' &&
+    typeof message.blockPublishOnError === 'boolean' &&
+    typeof message.dependencyAudit === 'boolean' &&
+    typeof message.socketDev === 'boolean' &&
+    (message.severityThreshold === 'error' || message.severityThreshold === 'warning' || message.severityThreshold === 'info') &&
+    typeof message.ignore === 'string' &&
+    typeof message.suppressions === 'string'
+  );
+}
+
+function getDependencyAuditEnabled(): boolean {
+  return vscode.workspace.getConfiguration('publishguard').get<boolean>('dependencyAudit', false);
+}
+
+function getSocketDevEnabled(): boolean {
+  return vscode.workspace.getConfiguration('publishguard').get<boolean>('socketDev', false);
+}
+
+function isSuppressionLike(value: unknown): value is { rule?: string; file?: string; fingerprint?: string; reason: string } {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const suppression = value as Record<string, unknown>;
+  return (
+    typeof suppression.reason === 'string' &&
+    suppression.reason.trim().length > 0 &&
+    (suppression.rule === undefined || typeof suppression.rule === 'string') &&
+    (suppression.file === undefined || typeof suppression.file === 'string') &&
+    (suppression.fingerprint === undefined || typeof suppression.fingerprint === 'string')
+  );
+}
+
+function createNonce(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let nonce = '';
+  for (let i = 0; i < 24; i++) {
+    nonce += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return nonce;
 }
 
 function generateMarkdownReport(result: ScanResult): string {

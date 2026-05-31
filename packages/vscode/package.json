@@ -19,8 +19,8 @@
         "command": "publishguard.scan",
         "title": "PublishGuard: Scan Project",
         "icon": {
-          "light": "resources/icon-light.svg",
-          "dark": "resources/icon-dark.svg"
+          "light": "resources/icon-light.png",
+          "dark": "resources/icon-dark.png"
         }
       },
       {
@@ -94,13 +94,23 @@
       "properties": {
         "publishguard.scanOnSave": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "Automatically scan after saving package.json"
         },
         "publishguard.blockPublishOnError": {
           "type": "boolean",
           "default": true,
           "description": "Block VS Code extension publishing if errors are found"
+        },
+        "publishguard.dependencyAudit": {
+          "type": "boolean",
+          "default": false,
+          "description": "Run npm audit during scans to confirm known vulnerable dependencies. This can contact the npm registry and may take longer."
+        },
+        "publishguard.socketDev": {
+          "type": "boolean",
+          "default": false,
+          "description": "Run Socket.dev CLI confirmation for medium, high, and critical supply-chain alerts. Requires the Socket CLI to be installed and configured."
         },
         "publishguard.severityThreshold": {
           "type": "string",

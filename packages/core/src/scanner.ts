@@ -5,6 +5,7 @@ import { scanSecrets } from './scanners/secrets';
 import { validateIgnoreFiles } from './scanners/ignore-validator';
 import { scanManifest } from './scanners/manifest';
 import { scanFileSizes } from './scanners/file-size';
+import { scanDependencies } from './scanners/dependencies';
 import { loadConfig, parseSize } from './config';
 import type { ScanResult, Issue } from './types';
 import type { ScanOptions, SuppressionConfig } from './config';
@@ -34,12 +35,12 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     fileListMethod = packageType === 'vscode' ? 'vsce-cli' : 'combined';
   }
   publishedFiles = Array.from(new Set(publishedFiles.map((file) => normalizeFile(file)))).sort();
-  const scanFiles = getScanFiles({
+  const scanFiles = applyIgnoreGlobs(getScanFiles({
     projectRoot,
     publishedFiles,
     stagedFiles: options.stagedFiles,
     includeGitIgnored: options.includeGitIgnored,
-  });
+  }), config.ignore);
 
   if (!options.skip?.includes('manifest')) {
     const manifestResult = await scanManifest(projectRoot);
@@ -82,8 +83,15 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     allIssues.push(...filterByConfig(sizeIssues, config));
   }
 
+  if (!options.skip?.includes('dependencies')) {
+    allIssues.push(...filterByConfig(await scanDependencies(projectRoot, {
+      npmAudit: options.dependencyAudit ?? config.dependencyAudit?.enabled ?? false,
+      socketDev: options.socketDev ?? config.socketDev?.enabled ?? false,
+    }), config));
+  }
+
   const uniqueIssues = filterSuppressedIssues(
-    deduplicateIssues(allIssues.map(withFingerprint)),
+    applyIssueIgnoreGlobs(deduplicateIssues(allIssues.map(withFingerprint)), config.ignore),
     config.suppressions,
   );
 
@@ -155,6 +163,21 @@ function getScanFiles(options: {
 function normalizeFile(file: string, projectRoot?: string): string {
   const relativeFile = projectRoot && path.isAbsolute(file) ? path.relative(projectRoot, file) : file;
   return relativeFile.replace(/\\/g, '/').replace(/^\.\//, '');
+}
+
+function applyIgnoreGlobs(files: string[], ignoreGlobs: readonly string[]): string[] {
+  if (ignoreGlobs.length === 0) return files;
+  const patterns = Array.from(ignoreGlobs);
+  return files.filter((file) => !micromatch.isMatch(normalizeIssuePath(file), patterns, { dot: true }));
+}
+
+function applyIssueIgnoreGlobs(issues: Issue[], ignoreGlobs: readonly string[]): Issue[] {
+  if (ignoreGlobs.length === 0) return issues;
+  const patterns = Array.from(ignoreGlobs);
+  return issues.filter((issue) => {
+    if (!issue.file) return true;
+    return !micromatch.isMatch(normalizeIssuePath(issue.file), patterns, { dot: true });
+  });
 }
 
 function withFingerprint(issue: Issue): Issue {
