@@ -1,0 +1,228 @@
+import * as path from 'node:path';
+import * as fs from 'node:fs';
+import { getNpmPublishFiles, getVsixPublishFiles } from './scanners/file-list';
+import { scanSecrets } from './scanners/secrets';
+import { validateIgnoreFiles } from './scanners/ignore-validator';
+import { scanManifest } from './scanners/manifest';
+import { scanFileSizes } from './scanners/file-size';
+import { loadConfig, parseSize } from './config';
+import type { ScanResult, Issue } from './types';
+import type { ScanOptions, SuppressionConfig } from './config';
+
+const micromatch = require('micromatch') as {
+  isMatch(input: string, pattern: string | string[], options?: { dot?: boolean }): boolean;
+};
+
+export async function scan(options: ScanOptions): Promise<ScanResult> {
+  const startTime = Date.now();
+  const { projectRoot } = options;
+  const config = loadConfig(projectRoot);
+  const allIssues: Issue[] = [];
+
+  const packageType = options.packageType ?? detectPackageType(projectRoot);
+
+  let publishedFiles: string[] = [];
+  let fileListMethod = 'none';
+
+  if (packageType === 'npm' || packageType === 'both') {
+    publishedFiles = await getNpmPublishFiles(projectRoot);
+    fileListMethod = 'npm-cli';
+  }
+  if (packageType === 'vscode' || packageType === 'both') {
+    const vsixFiles = await getVsixPublishFiles(projectRoot);
+    publishedFiles = Array.from(new Set([...publishedFiles, ...vsixFiles]));
+    fileListMethod = packageType === 'vscode' ? 'vsce-cli' : 'combined';
+  }
+  publishedFiles = Array.from(new Set(publishedFiles.map((file) => normalizeFile(file)))).sort();
+  const scanFiles = getScanFiles({
+    projectRoot,
+    publishedFiles,
+    stagedFiles: options.stagedFiles,
+    includeGitIgnored: options.includeGitIgnored,
+  });
+
+  if (!options.skip?.includes('manifest')) {
+    const manifestResult = await scanManifest(projectRoot);
+    allIssues.push(...filterByConfig(manifestResult.issues, config));
+  }
+
+  if (!options.skip?.includes('ignore-validation')) {
+    const ignoreFileNames =
+      packageType === 'vscode' || packageType === 'both'
+        ? ['.vscodeignore', '.npmignore', '.gitignore']
+        : ['.npmignore', '.gitignore'];
+
+    const ignoreResult = validateIgnoreFiles({
+      rootDir: projectRoot,
+      publishedFiles,
+      ignoreFiles: ignoreFileNames,
+    });
+    for (const fr of ignoreResult.fileResults) {
+      allIssues.push(...filterByConfig(fr.issues, config));
+    }
+  }
+
+  if (!options.skip?.includes('secrets')) {
+    const secretIssues = await scanSecrets({
+      files: scanFiles,
+      rootDir: projectRoot,
+    });
+    allIssues.push(...filterByConfig(secretIssues, config));
+  }
+
+  if (!options.skip?.includes('file-size')) {
+    const cfgWarn = config.fileSize?.warnThreshold ?? '5MB';
+    const cfgError = config.fileSize?.errorThreshold ?? '50MB';
+    const sizeIssues = scanFileSizes({
+      files: scanFiles,
+      rootDir: projectRoot,
+      warnThreshold: parseSize(cfgWarn),
+      errorThreshold: parseSize(cfgError),
+    });
+    allIssues.push(...filterByConfig(sizeIssues, config));
+  }
+
+  const uniqueIssues = filterSuppressedIssues(
+    deduplicateIssues(allIssues.map(withFingerprint)),
+    config.suppressions,
+  );
+
+  const severityOrder = { error: 0, warning: 1, info: 2 };
+  uniqueIssues.sort((a, b) => {
+    const sDiff = severityOrder[a.severity] - severityOrder[b.severity];
+    if (sDiff !== 0) return sDiff;
+    return a.rule.localeCompare(b.rule);
+  });
+
+  const errors = uniqueIssues.filter((i) => i.severity === 'error').length;
+  const warnings = uniqueIssues.filter((i) => i.severity === 'warning').length;
+  const infos = uniqueIssues.filter((i) => i.severity === 'info').length;
+
+  return {
+    projectRoot,
+    packageType,
+    publishedFiles,
+    fileListMethod,
+    issues: uniqueIssues,
+    summary: { errors, warnings, infos },
+    durationMs: Date.now() - startTime,
+  };
+}
+
+function detectPackageType(rootDir: string): 'npm' | 'vscode' | 'both' | 'unknown' {
+  const pkgPath = path.join(rootDir, 'package.json');
+  if (!fs.existsSync(pkgPath)) return 'unknown';
+  try {
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+    if (pkg.engines?.vscode || pkg.activationEvents || pkg.contributes || pkg.publisher) {
+      return 'both';
+    }
+    return 'npm';
+  } catch {
+    return 'unknown';
+  }
+}
+
+function deduplicateIssues(issues: Issue[]): Issue[] {
+  const seen = new Set<string>();
+  return issues.filter((i) => {
+    const key = `${i.rule}::${i.file}::${i.message}::${i.fingerprint ?? ''}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function getScanFiles(options: {
+  projectRoot: string;
+  publishedFiles: string[];
+  stagedFiles?: string[];
+  includeGitIgnored?: boolean;
+}): string[] {
+  const publishedSet = new Set(options.publishedFiles.map((file) => normalizeFile(file, options.projectRoot)));
+  let files = Array.from(publishedSet);
+
+  if (options.stagedFiles) {
+    const stagedSet = new Set(options.stagedFiles.map((file) => normalizeFile(file, options.projectRoot)));
+    files = files.filter((file) => stagedSet.has(file));
+  }
+
+  if (!options.includeGitIgnored) {
+    const gitIgnore = loadGitIgnore(options.projectRoot);
+    if (gitIgnore) {
+      files = files.filter((file) => !gitIgnore.ignores(file));
+    }
+  }
+
+  return files;
+}
+
+function loadGitIgnore(rootDir: string): ReturnType<typeof ignore> | null {
+  const gitignorePath = path.join(rootDir, '.gitignore');
+  if (!fs.existsSync(gitignorePath)) return null;
+  return ignore().add(fs.readFileSync(gitignorePath, 'utf-8'));
+}
+
+function normalizeFile(file: string, projectRoot?: string): string {
+  const relativeFile = projectRoot && path.isAbsolute(file) ? path.relative(projectRoot, file) : file;
+  return relativeFile.replace(/\\/g, '/').replace(/^\.\//, '');
+}
+
+function withFingerprint(issue: Issue): Issue {
+  const line = issue.location?.line ?? 1;
+  const column = issue.location?.column ?? 1;
+  return {
+    ...issue,
+    fingerprint: `${issue.rule}:${issue.file}:${line}:${column}`,
+  };
+}
+
+function filterSuppressedIssues(issues: Issue[], suppressions: readonly unknown[]): Issue[] {
+  if (suppressions.length === 0) return issues;
+  return issues.filter((issue) => !suppressions.some((suppression) => matchesSuppression(issue, suppression)));
+}
+
+function matchesSuppression(issue: Issue, suppression: unknown): boolean {
+  if (!isSuppressionObject(suppression)) return false;
+  if (typeof suppression.reason !== 'string' || !suppression.reason.trim()) return false;
+
+  const fingerprint = typeof suppression.fingerprint === 'string' ? nonBlank(suppression.fingerprint) : undefined;
+  const rule = typeof suppression.rule === 'string' ? nonBlank(suppression.rule) : undefined;
+  const file = typeof suppression.file === 'string' ? nonBlank(suppression.file) : undefined;
+  if (!fingerprint && !rule && !file) return false;
+
+  if (fingerprint && issue.fingerprint !== fingerprint) return false;
+  if (rule && issue.rule !== rule) return false;
+  if (file && !micromatch.isMatch(normalizeIssuePath(issue.file), normalizeIssuePath(file), { dot: true })) {
+    return false;
+  }
+
+  return true;
+}
+
+function isSuppressionObject(value: unknown): value is Partial<Record<keyof SuppressionConfig, unknown>> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function nonBlank(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function normalizeIssuePath(filePath: string): string {
+  return filePath.replace(/\\/g, '/');
+}
+
+function filterByConfig(issues: Issue[], config: ReturnType<typeof loadConfig>): Issue[] {
+  return issues.flatMap((issue) => {
+    const ruleConfig = config.rules[issue.rule];
+    if (ruleConfig === undefined) {
+      // Unknown rules pass through at their default severity
+      return [issue];
+    }
+    if (ruleConfig === 'off') return [];
+    const configuredSeverity = typeof ruleConfig === 'string' ? ruleConfig : ruleConfig[0];
+    // Update severity to match config
+    return [{ ...issue, severity: configuredSeverity as Issue['severity'] }];
+  });
+}

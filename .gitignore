@@ -1,0 +1,28 @@
+node_modules
+**/node_modules
+**/node_modules/**
+packages/*/node_modules
+packages/*/node_modules/**
+dist
+out
+*.tsbuildinfo
+coverage
+.vscode-test
+*.vsix
+*.tgz
+.env
+.env.*
+.DS_Store
+Thumbs.db
+*.log
+.turbo
+secrets*
+*.test.*
+
+docs
+docs/**
+
+# IgnoreKit
+# Added from VS Code Explorer
+docs/superpowers
+# End IgnoreKit

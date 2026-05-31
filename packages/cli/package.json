@@ -1,0 +1,52 @@
+{
+  "name": "@publishguard/cli",
+  "version": "0.1.0",
+  "description": "CLI for PublishGuard — pre-publish safety scanner for npm and VS Code extensions",
+  "main": "dist/index.js",
+  "bin": {
+    "publishguard": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs --dts --clean --out-dir dist",
+    "dev": "tsup src/index.ts --format cjs --dts --watch --out-dir dist",
+    "lint": "echo ok",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@publishguard/core": "0.1.0",
+    "chalk": "^5.4.1",
+    "commander": "^12.1.0",
+    "ora": "^8.1.1",
+    "boxen": "^8.0.1",
+    "table": "^6.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsup": "^8.3.5",
+    "vitest": "^2.1.8"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT",
+  "author": "VladNoskov",
+  "publisher": "VladNoskov",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/VladNoskov/publishguard"
+  },
+  "keywords": [
+    "publish",
+    "security",
+    "npm",
+    "vscode",
+    "scanner",
+    "cli",
+    "audit"
+  ]
+}

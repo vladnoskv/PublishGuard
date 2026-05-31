@@ -1,0 +1,198 @@
+{
+  "name": "publishguard",
+  "displayName": "PublishGuard",
+  "description": "Pre-publish safety scanner for npm packages and VS Code extensions — catches secrets, sensitive files, and metadata issues before you publish.",
+  "version": "0.1.0",
+  "publisher": "VladNoskov",
+  "icon": "resources/icon.png",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Linters", "Other"],
+  "activationEvents": [
+    "workspaceContains:package.json"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "publishguard.scan",
+        "title": "PublishGuard: Scan Project"
+      },
+      {
+        "command": "publishguard.fix",
+        "title": "PublishGuard: Auto-Fix Issues"
+      },
+      {
+        "command": "publishguard.init",
+        "title": "PublishGuard: Generate Ignore Files"
+      },
+      {
+        "command": "publishguard.showIssues",
+        "title": "PublishGuard: Show Issues"
+      },
+      {
+        "command": "publishguard.openSettings",
+        "title": "PublishGuard: Open Settings"
+      },
+      {
+        "command": "publishguard.openIssue",
+        "title": "PublishGuard: Open Issue"
+      },
+      {
+        "command": "publishguard.revealIssue",
+        "title": "PublishGuard: Reveal in File Explorer"
+      },
+      {
+        "command": "publishguard.deleteIssueFile",
+        "title": "PublishGuard: Delete File"
+      },
+      {
+        "command": "publishguard.suppressIssue",
+        "title": "PublishGuard: Ignore This Problem"
+      },
+      {
+        "command": "publishguard.copyIssue",
+        "title": "PublishGuard: Copy Issue"
+      },
+      {
+        "command": "publishguard.copyMarkdownReport",
+        "title": "PublishGuard: Copy Markdown Report"
+      },
+      {
+        "command": "publishguard.exportMarkdownReport",
+        "title": "PublishGuard: Export Markdown Report"
+      },
+      {
+        "command": "publishguard.installPreCommitHook",
+        "title": "PublishGuard: Install Pre-Commit Hook"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "publishguard",
+          "title": "PublishGuard",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "publishguard": [
+        {
+          "id": "publishguard.issues",
+          "name": "Publishing Issues"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "PublishGuard",
+      "properties": {
+        "publishguard.scanOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically scan after saving package.json"
+        },
+        "publishguard.blockPublishOnError": {
+          "type": "boolean",
+          "default": true,
+          "description": "Block VS Code extension publishing if errors are found"
+        },
+        "publishguard.severityThreshold": {
+          "type": "string",
+          "default": "info",
+          "enum": ["error", "warning", "info"],
+          "description": "Minimum severity level to report"
+        }
+      }
+    }
+  },
+  "menus": {
+    "view/title": [
+      {
+        "command": "publishguard.scan",
+        "when": "view == publishguard.issues",
+        "group": "navigation@1"
+      },
+      {
+        "command": "publishguard.openSettings",
+        "when": "view == publishguard.issues",
+        "group": "navigation@2"
+      }
+    ],
+    "view/item/context": [
+      {
+        "command": "publishguard.openIssue",
+        "when": "view == publishguard.issues && viewItem == issue",
+        "group": "navigation@1"
+      },
+      {
+        "command": "publishguard.revealIssue",
+        "when": "view == publishguard.issues && viewItem == issue",
+        "group": "navigation@2"
+      },
+      {
+        "command": "publishguard.suppressIssue",
+        "when": "view == publishguard.issues && viewItem == issue",
+        "group": "inline@1"
+      },
+      {
+        "command": "publishguard.copyIssue",
+        "when": "view == publishguard.issues && viewItem == issue",
+        "group": "inline@2"
+      },
+      {
+        "command": "publishguard.deleteIssueFile",
+        "when": "view == publishguard.issues && viewItem == issue",
+        "group": "2_modification@1"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "echo ok",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "package": "vsce package --no-dependencies"
+  },
+  "dependencies": {
+    "@publishguard/core": "0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.2.1",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT",
+  "author": "VladNoskov",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/VladNoskov/publishguard"
+  },
+  "bugs": {
+    "url": "https://github.com/VladNoskov/publishguard/issues"
+  },
+  "homepage": "https://github.com/VladNoskov/publishguard#readme",
+  "galleryBanner": {
+    "color": "#007acc",
+    "theme": "dark"
+  },
+  "keywords": [
+    "publish",
+    "security",
+    "npm",
+    "vscode-extension",
+    "scanner",
+    "audit",
+    "supply-chain"
+  ]
+}
