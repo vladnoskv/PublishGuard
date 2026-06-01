@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import * as path from 'node:path';
 import { generateSafeIgnoreFile } from '@publishguard/core';
+import { buildProblemSuppressionActions, normalizeIssueFile } from './suppressions';
 
 export class PublishGuardQuickFix implements vscode.CodeActionProvider {
   static readonly providedCodeActionKinds = [
@@ -18,23 +18,38 @@ export class PublishGuardQuickFix implements vscode.CodeActionProvider {
     for (const diagnostic of context.diagnostics) {
       if (diagnostic.source !== 'PublishGuard') continue;
 
-      const rule = diagnostic.code as string;
+      const rule = String(diagnostic.code ?? '');
+      const file = normalizeIssueFile(vscode.workspace.asRelativePath(document.uri, false));
 
-      // Add to ignore file action
+      // Add to PublishGuard ignore config action
       if (rule === 'env-file' || rule === 'private-key' || rule === 'credentials-file' ||
           rule === 'log-file' || rule === 'test-data' || rule === 'source-map' ||
           rule === 'coverage' || rule === 'temp-file' || rule === 'ds-store' ||
           rule === 'windows-thumbs' || rule === 'vscode-settings') {
 
-        const fileName = path.basename(document.fileName);
         const action = new vscode.CodeAction(
-          `Add "${fileName}" to .npmignore`,
+          `PublishGuard: Ignore ${file}`,
           vscode.CodeActionKind.QuickFix,
         );
         action.command = {
-          command: 'publishguard.addToNpmignore',
-          title: 'Add to .npmignore',
-          arguments: [document.fileName],
+          command: 'publishguard.addToPublishGuardIgnore',
+          title: 'Add to PublishGuard ignore',
+          arguments: [file],
+        };
+        action.diagnostics = [diagnostic];
+        actions.push(action);
+      }
+
+      for (const choice of buildProblemSuppressionActions(rule, file)) {
+        const action = new vscode.CodeAction(choice.title, vscode.CodeActionKind.QuickFix);
+        action.command = {
+          command: 'publishguard.suppressDiagnostic',
+          title: choice.title,
+          arguments: [{
+            rule,
+            file,
+            message: diagnostic.message,
+          }, choice.scope],
         };
         action.diagnostics = [diagnostic];
         actions.push(action);

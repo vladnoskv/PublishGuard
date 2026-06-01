@@ -56,6 +56,26 @@
         "title": "PublishGuard: Ignore This Problem"
       },
       {
+        "command": "publishguard.suppressRuleInFile",
+        "title": "PublishGuard: Ignore Rule in This File"
+      },
+      {
+        "command": "publishguard.suppressFile",
+        "title": "PublishGuard: Ignore This File"
+      },
+      {
+        "command": "publishguard.suppressRuleInFolder",
+        "title": "PublishGuard: Ignore Rule in This Folder"
+      },
+      {
+        "command": "publishguard.suppressFolder",
+        "title": "PublishGuard: Ignore This Folder"
+      },
+      {
+        "command": "publishguard.suppressRuleEverywhere",
+        "title": "PublishGuard: Ignore Rule Everywhere"
+      },
+      {
         "command": "publishguard.copyIssue",
         "title": "PublishGuard: Copy Issue"
       },
@@ -169,12 +189,37 @@
       {
         "command": "publishguard.suppressIssue",
         "when": "view == publishguard.issues && viewItem == issue",
-        "group": "inline@1"
+        "group": "1_ignore@1"
+      },
+      {
+        "command": "publishguard.suppressRuleInFile",
+        "when": "view == publishguard.issues && viewItem == issue",
+        "group": "1_ignore@2"
+      },
+      {
+        "command": "publishguard.suppressFile",
+        "when": "view == publishguard.issues && viewItem == issue",
+        "group": "1_ignore@3"
+      },
+      {
+        "command": "publishguard.suppressRuleInFolder",
+        "when": "view == publishguard.issues && viewItem == issue",
+        "group": "1_ignore@4"
+      },
+      {
+        "command": "publishguard.suppressFolder",
+        "when": "view == publishguard.issues && viewItem == issue",
+        "group": "1_ignore@5"
+      },
+      {
+        "command": "publishguard.suppressRuleEverywhere",
+        "when": "view == publishguard.issues && viewItem == issue",
+        "group": "1_ignore@6"
       },
       {
         "command": "publishguard.copyIssue",
         "when": "view == publishguard.issues && viewItem == issue",
-        "group": "inline@2"
+        "group": "inline@1"
       },
       {
         "command": "publishguard.deleteIssueFile",

@@ -13,6 +13,7 @@ Pre-publish safety scanner for npm packages and VS Code extensions. Catches secr
 - **Dependency risk checks**: Warns about floating dependency versions and non-registry sources, confirms known vulnerabilities with npm audit, and can use the Socket.dev CLI for broader supply-chain alerts
 - **Optional local sweep**: Include gitignored workspace files in secret and size scans when you want to check local-only files before committing or publishing
 - **Quick fixes**: Right-click issues to auto-generate ignore rules or fix manifest problems
+- **False-positive controls**: Ignore a single finding, a rule in one file or folder, all findings in a file or folder, or a rule across the project from the sidebar or VS Code Problems quick fixes
 - **Problems panel integration**: All issues show up in VS Code's Problems panel
 - **Settings webview**: Manage scan-on-save, severity, ignored globs, and suppressions without editing JSON by hand
 
@@ -22,7 +23,7 @@ Pre-publish safety scanner for npm packages and VS Code extensions. Catches secr
 2. PublishGuard activates automatically
 3. Click the PublishGuard icon in the activity bar or press `Ctrl+Shift+P` → `PublishGuard: Scan Project`
 4. Review issues in the sidebar or Problems panel
-5. Use quick-fix actions to resolve issues
+5. Use quick-fix actions or right-click an issue to resolve or ignore reviewed false positives
 
 ## Commands
 
@@ -63,6 +64,8 @@ Project-level ignore globs and reviewed false positives are stored in `.publishg
   ]
 }
 ```
+
+Right-click findings in the PublishGuard sidebar, or use the lightbulb/quick-fix action in VS Code Problems, to add reviewed suppressions without editing JSON. Suppressions can target an exact finding, one rule in a file, all issues in a file, one rule in a folder, all issues in a folder, or one rule project-wide. File ignore quick fixes write to `.publishguardrc.json`, not `.npmignore`, so they only quiet PublishGuard findings and do not change what your package publishes.
 
 Default scans focus on files that would be published. Enable `publishguard.includeGitIgnored` for a broader local scan that also checks gitignored workspace files such as `.env`; this is useful for pre-commit reviews and does not change the package file list.
 

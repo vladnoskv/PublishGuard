@@ -111,9 +111,18 @@ export function validateIgnoreFiles(options: IgnoreValidationOptions): IgnoreVal
     }
 
     for (let i = 0; i < rawLines.length; i++) {
-      const line = rawLines[i].trim();
+      const rawLine = rawLines[i];
+      const line = rawLine.trim();
       if (line === '' || line.startsWith('#')) continue;
       const lineNum = i + 1;
+      const column = rawLine.search(/\S/) + 1;
+      const location = {
+        line: lineNum,
+        column,
+        endLine: lineNum,
+        endColumn: column + line.length,
+        excerpt: line,
+      };
 
       if (line.endsWith('/') && !line.startsWith('/')) {
         issues.push({
@@ -122,6 +131,7 @@ export function validateIgnoreFiles(options: IgnoreValidationOptions): IgnoreVal
           category: 'ignore-file',
           file: fileName,
           message: `${fileName}:${lineNum} has a trailing slash ("${line}"). A trailing slash matches only directories, which may not be intended.`,
+          location,
         });
       }
 
@@ -132,21 +142,33 @@ export function validateIgnoreFiles(options: IgnoreValidationOptions): IgnoreVal
           category: 'ignore-file',
           file: fileName,
           message: `${fileName}:${lineNum} has a leading slash ("${line}"). Patterns are already relative to project root.`,
+          location,
         });
       }
     }
 
-    const negationLines = rawLines.filter((l) => l.trim().startsWith('!'));
-    for (const negLine of negationLines) {
-      const pattern = negLine.trim().slice(1);
+    for (let i = 0; i < rawLines.length; i++) {
+      const rawLine = rawLines[i];
+      const negLine = rawLine.trim();
+      if (!negLine.startsWith('!')) continue;
+      const pattern = negLine.slice(1);
       if (pattern === '' || pattern === '*') {
+        const lineNum = i + 1;
+        const column = rawLine.search(/\S/) + 1;
         issues.push({
           rule: 'dangerous-negation',
           severity: 'warning',
           category: 'ignore-file',
           file: fileName,
-          message: `"${negLine.trim()}" in ${fileName} negates too broadly and may accidentally include sensitive files.`,
+          message: `"${negLine}" in ${fileName} negates too broadly and may accidentally include sensitive files.`,
           suggestion: `Use more specific negation patterns, e.g., "!/dist/important-file.js".`,
+          location: {
+            line: lineNum,
+            column,
+            endLine: lineNum,
+            endColumn: column + negLine.length,
+            excerpt: negLine,
+          },
         });
       }
     }

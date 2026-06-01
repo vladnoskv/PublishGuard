@@ -47,6 +47,34 @@ describe('Ignore Validator', () => {
     expect(result.fileResults[0].issues.some((i) => i.rule === 'dangerous-negation')).toBe(true);
   });
 
+  it('should attach exact locations to slash lint findings', () => {
+    fs.writeFileSync(path.join(tmpDir, '.gitignore'), 'dist\nsecrets/\n/docs\n');
+
+    const result = validateIgnoreFiles({
+      rootDir: tmpDir,
+      publishedFiles: ['index.js'],
+      ignoreFiles: ['.gitignore'],
+    });
+
+    const trailingSlash = result.fileResults[0].issues.find((i) => i.rule === 'trailing-slash');
+    const leadingSlash = result.fileResults[0].issues.find((i) => i.rule === 'leading-slash');
+
+    expect(trailingSlash?.location).toEqual({
+      line: 2,
+      column: 1,
+      endLine: 2,
+      endColumn: 9,
+      excerpt: 'secrets/',
+    });
+    expect(leadingSlash?.location).toEqual({
+      line: 3,
+      column: 1,
+      endLine: 3,
+      endColumn: 6,
+      excerpt: '/docs',
+    });
+  });
+
   it('should generate safe ignore file', () => {
     const result = generateSafeIgnoreFile(tmpDir, '.npmignore');
     expect(result.created).toBe(true);

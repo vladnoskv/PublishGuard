@@ -5,6 +5,7 @@ import type { ExampleFilesConfig, PublishGuardConfig, ScanResult, Issue } from '
 import { PublishGuardTreeProvider } from './tree-view';
 import { PublishGuardQuickFix } from './quick-fix';
 import { buildSettingsWebviewHtml } from './settings-webview';
+import { addIgnoreGlob, buildSuppressionEntry, isSuppressionScope, normalizeIssueFile, type SuppressionScope } from './suppressions';
 
 let diagnosticCollection: vscode.DiagnosticCollection;
 let treeProvider: PublishGuardTreeProvider;
@@ -24,19 +25,7 @@ export function activate(context: vscode.ExtensionContext) {
   const quickFix = new PublishGuardQuickFix();
   context.subscriptions.push(
     vscode.languages.registerCodeActionsProvider(
-      { scheme: 'file', pattern: '**/package.json' },
-      quickFix,
-    ),
-    vscode.languages.registerCodeActionsProvider(
-      { pattern: '**/.npmignore' },
-      quickFix,
-    ),
-    vscode.languages.registerCodeActionsProvider(
-      { pattern: '**/.vscodeignore' },
-      quickFix,
-    ),
-    vscode.languages.registerCodeActionsProvider(
-      { pattern: '**/.gitignore' },
+      { scheme: 'file' },
       quickFix,
     ),
   );
@@ -62,7 +51,42 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('publishguard.suppressIssue', (item) => suppressIssue(getIssueFromCommandArg(item))),
+    vscode.commands.registerCommand('publishguard.suppressIssue', (item) => suppressIssue(getIssueFromCommandArg(item), 'exact')),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('publishguard.suppressDiagnostic', (issue, scope) => {
+      if (!isSuppressionScope(scope)) return;
+      return suppressIssue(getIssueFromCommandArg(issue), scope);
+    }),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('publishguard.suppressRuleInFile', (item) => suppressIssue(getIssueFromCommandArg(item), 'rule-file')),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('publishguard.suppressFile', (item) => suppressIssue(getIssueFromCommandArg(item), 'file')),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('publishguard.suppressRuleInFolder', (item) => suppressIssue(getIssueFromCommandArg(item), 'rule-folder')),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('publishguard.suppressFolder', (item) => suppressIssue(getIssueFromCommandArg(item), 'folder')),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('publishguard.suppressRuleEverywhere', (item) => suppressIssue(getIssueFromCommandArg(item), 'rule')),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('publishguard.addToPublishGuardIgnore', addToPublishGuardIgnore),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('publishguard.addToNpmignore', addToPublishGuardIgnore),
   );
 
   context.subscriptions.push(
@@ -171,6 +195,7 @@ export function activate(context: vscode.ExtensionContext) {
       if (!config.get<boolean>('scanOnSave', true)) return;
       if (
         doc.fileName.endsWith('package.json') ||
+        doc.fileName.endsWith('.publishguardrc.json') ||
         doc.fileName.endsWith('.npmignore') ||
         doc.fileName.endsWith('.vscodeignore') ||
         doc.fileName.endsWith('.gitignore')
@@ -332,6 +357,19 @@ function getIssueFromCommandArg(arg: unknown): Issue | undefined {
   if (arg && typeof arg === 'object' && 'issue' in arg) {
     return (arg as { issue?: Issue }).issue;
   }
+  if (arg && typeof arg === 'object' && 'rule' in arg) {
+    const candidate = arg as { rule?: unknown; file?: unknown; message?: unknown; fingerprint?: unknown };
+    if (typeof candidate.rule === 'string') {
+      return {
+        rule: candidate.rule,
+        severity: 'info',
+        category: 'unknown',
+        file: typeof candidate.file === 'string' ? normalizeIssueFile(candidate.file) : '',
+        message: typeof candidate.message === 'string' ? candidate.message : candidate.rule,
+        fingerprint: typeof candidate.fingerprint === 'string' ? candidate.fingerprint : undefined,
+      };
+    }
+  }
   return undefined;
 }
 
@@ -366,14 +404,15 @@ async function deleteIssueFile(issue: Issue | undefined): Promise<void> {
   await runScan();
 }
 
-async function suppressIssue(issue: Issue | undefined): Promise<void> {
+async function suppressIssue(issue: Issue | undefined, scope: SuppressionScope): Promise<void> {
   if (!issue) return;
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
   if (!workspaceFolder) return;
 
+  const defaultReason = scope === 'exact' ? 'Reviewed false positive' : `Reviewed ${scope} suppression`;
   const reason = await vscode.window.showInputBox({
-    prompt: 'Reason for ignoring this PublishGuard problem',
-    value: 'Reviewed false positive',
+    prompt: getSuppressionPrompt(issue, scope),
+    value: defaultReason,
     validateInput: (value) => value.trim() ? undefined : 'A reason is required.',
   });
   if (!reason) return;
@@ -381,20 +420,43 @@ async function suppressIssue(issue: Issue | undefined): Promise<void> {
   const configUri = vscode.Uri.joinPath(workspaceFolder.uri, '.publishguardrc.json');
   const config = await readJsonObject(configUri);
   const suppressions = Array.isArray(config.suppressions) ? config.suppressions : [];
-  const entry: Record<string, string> = {
-    rule: issue.rule,
-    file: issue.file,
-    reason: reason.trim(),
-  };
-  if (issue.fingerprint) {
-    entry.fingerprint = issue.fingerprint;
-  }
-  suppressions.push(entry);
+  suppressions.push(buildSuppressionEntry(issue, scope, reason));
   config.suppressions = suppressions;
 
   await vscode.workspace.fs.writeFile(configUri, Buffer.from(`${JSON.stringify(config, null, 2)}\n`, 'utf-8'));
-  vscode.window.showInformationMessage('PublishGuard: Problem ignored for future scans.');
+  vscode.window.showInformationMessage('PublishGuard: Ignore rule added for future scans.');
   await runScan();
+}
+
+function getSuppressionPrompt(issue: Issue, scope: SuppressionScope): string {
+  const file = normalizeIssueFile(issue.file);
+  if (scope === 'exact') return `Reason for ignoring this ${issue.rule} finding`;
+  if (scope === 'rule-file') return `Reason for ignoring ${issue.rule} in ${file}`;
+  if (scope === 'file') return `Reason for ignoring all PublishGuard issues in ${file}`;
+  if (scope === 'rule-folder') return `Reason for ignoring ${issue.rule} in this folder`;
+  if (scope === 'folder') return 'Reason for ignoring all PublishGuard issues in this folder';
+  return `Reason for ignoring ${issue.rule} everywhere`;
+}
+
+async function addToPublishGuardIgnore(fileName: string): Promise<void> {
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+  if (!workspaceFolder) return;
+  const relativeFile = toWorkspaceRelativeFile(fileName);
+  const configUri = vscode.Uri.joinPath(workspaceFolder.uri, '.publishguardrc.json');
+  const config = await readJsonObject(configUri);
+  await vscode.workspace.fs.writeFile(
+    configUri,
+    Buffer.from(`${JSON.stringify(addIgnoreGlob(config, relativeFile), null, 2)}\n`, 'utf-8'),
+  );
+  vscode.window.showInformationMessage(`PublishGuard: Added ${relativeFile} to .publishguardrc.json ignore.`);
+  await runScan();
+}
+
+function toWorkspaceRelativeFile(fileName: string): string {
+  if (/^(?:[a-zA-Z]:[\\/]|[\\/]{2}|[\\/])/.test(fileName)) {
+    return normalizeIssueFile(vscode.workspace.asRelativePath(vscode.Uri.file(fileName), false));
+  }
+  return normalizeIssueFile(fileName);
 }
 
 async function exportMarkdownReport(): Promise<void> {
