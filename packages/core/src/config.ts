@@ -28,6 +28,7 @@ export interface SuppressionConfig {
 }
 
 export interface PublishGuardConfig {
+  includeGitIgnored: boolean;
   rules: Record<string, Severity | 'off' | [Severity, Record<string, unknown>]>;
   ignore: string[];
   suppressions: SuppressionConfig[];
@@ -48,6 +49,7 @@ export interface PublishGuardConfig {
 }
 
 const DEFAULT_CONFIG: PublishGuardConfig = {
+  includeGitIgnored: false,
   rules: {
     'env-file': 'error',
     'private-key': 'error',
@@ -178,6 +180,7 @@ function mergeConfig(base: PublishGuardConfig, override: Partial<PublishGuardCon
   const baseExampleFiles = base.exampleFiles ?? DEFAULT_CONFIG.exampleFiles;
   const overrideExampleFiles = (override.exampleFiles ?? {}) as Partial<ExampleFilesConfig>;
   return {
+    includeGitIgnored: override.includeGitIgnored ?? base.includeGitIgnored,
     rules: { ...base.rules, ...override.rules },
     ignore: [...base.ignore, ...(override.ignore ?? [])],
     suppressions: [...base.suppressions, ...(override.suppressions ?? [])],

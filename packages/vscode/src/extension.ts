@@ -270,7 +270,7 @@ async function runScan(): Promise<ScanResult | null> {
         treeProvider.setScanning('Scanning secrets and package risks...');
         const scanResult = await scan({
           projectRoot: workspaceFolders[0].uri.fsPath,
-          includeGitIgnored: getIncludeGitIgnoredEnabled(),
+          includeGitIgnored: await getIncludeGitIgnoredEnabled(workspaceFolders[0].uri),
           dependencyAudit: getDependencyAuditEnabled(),
           socketDev: getSocketDevEnabled(),
         });
@@ -598,7 +598,7 @@ async function openSettingsWebview(context: vscode.ExtensionContext): Promise<vo
       scanOnSave: config.get<boolean>('scanOnSave', true),
       blockPublishOnError: config.get<boolean>('blockPublishOnError', true),
       dependencyAudit: getDependencyAuditEnabled(),
-      includeGitIgnored: getIncludeGitIgnoredEnabled(),
+      includeGitIgnored: await getIncludeGitIgnoredEnabled(workspaceFolder.uri),
       socketDev: getSocketDevEnabled(),
       severityThreshold: getSeverityThreshold(),
       ignore: Array.isArray(rc.ignore) ? rc.ignore.filter((item): item is string => typeof item === 'string') : [],
@@ -636,7 +636,7 @@ async function saveSettingsMessage(workspaceUri: vscode.Uri, message: SettingsMe
   const workspaceConfig = vscode.workspace.getConfiguration('publishguard');
   await workspaceConfig.update('scanOnSave', message.scanOnSave, vscode.ConfigurationTarget.Workspace);
   await workspaceConfig.update('blockPublishOnError', message.blockPublishOnError, vscode.ConfigurationTarget.Workspace);
-  await workspaceConfig.update('includeGitIgnored', message.includeGitIgnored, vscode.ConfigurationTarget.Workspace);
+  await updateWorkspaceSetting(workspaceConfig, 'includeGitIgnored', message.includeGitIgnored, { allowUnregistered: true });
   await workspaceConfig.update('severityThreshold', message.severityThreshold, vscode.ConfigurationTarget.Workspace);
   await workspaceConfig.update('dependencyAudit', message.dependencyAudit, vscode.ConfigurationTarget.Workspace);
   await workspaceConfig.update('socketDev', message.socketDev, vscode.ConfigurationTarget.Workspace);
@@ -651,12 +651,41 @@ function getDependencyAuditEnabled(): boolean {
   return vscode.workspace.getConfiguration('publishguard').get<boolean>('dependencyAudit', false);
 }
 
-function getIncludeGitIgnoredEnabled(): boolean {
-  return vscode.workspace.getConfiguration('publishguard').get<boolean>('includeGitIgnored', false);
+async function getIncludeGitIgnoredEnabled(workspaceUri?: vscode.Uri): Promise<boolean> {
+  const config = vscode.workspace.getConfiguration('publishguard');
+  const inspected = config.inspect<boolean>('includeGitIgnored');
+  const configuredValue = inspected?.workspaceFolderValue
+    ?? inspected?.workspaceValue
+    ?? inspected?.globalValue;
+  if (typeof configuredValue === 'boolean') return configuredValue;
+
+  if (workspaceUri) {
+    const rc = await readJsonObject(vscode.Uri.joinPath(workspaceUri, '.publishguardrc.json'));
+    if (typeof rc.includeGitIgnored === 'boolean') return rc.includeGitIgnored;
+  }
+
+  return config.get<boolean>('includeGitIgnored', false);
 }
 
 function getSocketDevEnabled(): boolean {
   return vscode.workspace.getConfiguration('publishguard').get<boolean>('socketDev', false);
+}
+
+async function updateWorkspaceSetting<T>(
+  config: vscode.WorkspaceConfiguration,
+  key: string,
+  value: T,
+  options?: { allowUnregistered?: boolean },
+): Promise<void> {
+  try {
+    await config.update(key, value, vscode.ConfigurationTarget.Workspace);
+  } catch (error) {
+    const message = (error as Error).message;
+    if (options?.allowUnregistered && message.includes('not a registered configuration')) {
+      return;
+    }
+    throw error;
+  }
 }
 
 function isExampleFilesConfig(value: unknown): value is ExampleFilesConfig {

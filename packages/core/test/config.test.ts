@@ -87,6 +87,7 @@ describe('Config', () => {
     expect(config.rules['test-data']).toBe('warning');
     expect(config.fileSize).toBeDefined();
     expect(config.fileSize?.warnThreshold).toBe('5MB');
+    expect(config.includeGitIgnored).toBe(false);
   });
 
   it('covers all default scanner rule IDs including generated missing-ignore rules', () => {

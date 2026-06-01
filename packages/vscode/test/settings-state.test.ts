@@ -59,7 +59,7 @@ describe('settings state', () => {
       command: 'saveSettings',
       scanOnSave: false,
       blockPublishOnError: true,
-      includeGitIgnored: false,
+      includeGitIgnored: true,
       dependencyAudit: true,
       socketDev: true,
       severityThreshold: 'info',
@@ -75,6 +75,7 @@ describe('settings state', () => {
     });
 
     expect(settingsMessageToConfigPatch(message!)).toMatchObject({
+      includeGitIgnored: true,
       dependencyAudit: { enabled: true },
       socketDev: { enabled: true },
       rules: { 'trailing-slash': 'off' },

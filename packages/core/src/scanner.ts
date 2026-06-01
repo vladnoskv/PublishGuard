@@ -41,7 +41,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     projectRoot,
     publishedFiles,
     stagedFiles: options.stagedFiles,
-    includeGitIgnored: options.includeGitIgnored,
+    includeGitIgnored: options.includeGitIgnored ?? config.includeGitIgnored,
     exampleFiles: config.exampleFiles,
   }), config.ignore);
 

@@ -36,9 +36,10 @@ export function normalizeSettingsMessage(value: unknown): SettingsMessage | unde
 
 export function settingsMessageToConfigPatch(message: SettingsMessage): Pick<
   PublishGuardConfig,
-  'ignore' | 'suppressions' | 'rules' | 'dependencyAudit' | 'socketDev' | 'exampleFiles'
+  'includeGitIgnored' | 'ignore' | 'suppressions' | 'rules' | 'dependencyAudit' | 'socketDev' | 'exampleFiles'
 > {
   return {
+    includeGitIgnored: message.includeGitIgnored,
     ignore: message.ignore,
     suppressions: message.suppressions,
     rules: message.rules,
