@@ -29,6 +29,8 @@ export interface DependencyScanOptions {
   auditRunner?: AuditRunner;
   socketDev?: boolean;
   socketRunner?: SocketRunner;
+  snyk?: boolean;
+  snykRunner?: SnykRunner;
 }
 
 export interface NpmAuditResult {
@@ -62,6 +64,22 @@ export interface SocketScanResult {
 }
 
 export type SocketRunner = (projectRoot: string, packages: string[]) => Promise<SocketScanResult>;
+
+export interface SnykVulnerability {
+  packageName?: string;
+  name?: string;
+  title?: string;
+  severity?: string;
+  version?: string;
+  from?: string[];
+  url?: string;
+}
+
+export interface SnykScanResult {
+  vulnerabilities?: SnykVulnerability[] | Record<string, SnykVulnerability>;
+}
+
+export type SnykRunner = (projectRoot: string) => Promise<SnykScanResult>;
 
 export async function scanDependencies(projectRoot: string, options: DependencyScanOptions = {}): Promise<Issue[]> {
   const pkgPath = path.join(projectRoot, 'package.json');
@@ -114,6 +132,10 @@ export async function scanDependencies(projectRoot: string, options: DependencyS
 
   if (options.socketDev) {
     issues.push(...await scanSocketDev(projectRoot, dependencySpecs, options.socketRunner ?? runSocketCli));
+  }
+
+  if (options.snyk) {
+    issues.push(...await scanSnyk(projectRoot, options.snykRunner ?? runSnykCli));
   }
 
   return issues;
@@ -254,6 +276,84 @@ function socketSeverity(severity: string | undefined): Issue['severity'] | undef
   if (severity === 'critical' || severity === 'high') return 'error';
   if (severity === 'middle' || severity === 'medium') return 'warning';
   return undefined;
+}
+
+async function scanSnyk(projectRoot: string, snykRunner: SnykRunner): Promise<Issue[]> {
+  try {
+    const result = await snykRunner(projectRoot);
+    return snykIssues(result);
+  } catch (error) {
+    return [{
+      rule: 'dependency-snyk-unavailable',
+      severity: 'warning',
+      category: 'dependencies',
+      file: 'package.json',
+      message: `Snyk confirmation could not run: ${(error as Error).message}`,
+      suggestion: 'Install and authenticate the Snyk CLI, or disable Snyk confirmation until it is available.',
+    }];
+  }
+}
+
+function snykIssues(result: SnykScanResult): Issue[] {
+  return snykVulnerabilities(result)
+    .map((vulnerability): Issue | undefined => {
+      const severity = snykSeverity(vulnerability.severity);
+      if (!severity) return undefined;
+      const name = vulnerability.packageName ?? vulnerability.name ?? firstSnykFromPackage(vulnerability.from) ?? 'dependency';
+      const version = vulnerability.version ? `@${vulnerability.version}` : '';
+      return {
+        rule: 'dependency-snyk-vulnerability',
+        severity,
+        category: 'dependencies',
+        file: 'package.json',
+        message: `${name}${version} has a ${vulnerability.severity ?? 'known'} Snyk vulnerability${vulnerability.title ? `: ${vulnerability.title}` : ''}.`,
+        suggestion: [
+          vulnerability.url ? `Review advisory: ${vulnerability.url}.` : undefined,
+          `Confirm current package risk at ${socketPackageUrl(name)}.`,
+        ].filter(Boolean).join(' '),
+      };
+    })
+    .filter((issue): issue is Issue => Boolean(issue));
+}
+
+function snykVulnerabilities(result: SnykScanResult): SnykVulnerability[] {
+  const vulnerabilities = result.vulnerabilities;
+  if (Array.isArray(vulnerabilities)) return vulnerabilities;
+  if (vulnerabilities && typeof vulnerabilities === 'object') {
+    return Object.values(vulnerabilities);
+  }
+  return [];
+}
+
+async function runSnykCli(projectRoot: string): Promise<SnykScanResult> {
+  try {
+    const { stdout } = await execFileAsync('snyk', ['test', '--json'], {
+      cwd: projectRoot,
+      timeout: 60_000,
+      maxBuffer: 10 * 1024 * 1024,
+    });
+    return JSON.parse(stdout) as SnykScanResult;
+  } catch (error) {
+    const stdout = (error as { stdout?: unknown }).stdout;
+    if (typeof stdout === 'string' && stdout.trim()) {
+      return JSON.parse(stdout) as SnykScanResult;
+    }
+    throw error;
+  }
+}
+
+function snykSeverity(severity: string | undefined): Issue['severity'] | undefined {
+  if (severity === 'critical' || severity === 'high') return 'error';
+  if (severity === 'medium') return 'warning';
+  return undefined;
+}
+
+function firstSnykFromPackage(from: string[] | undefined): string | undefined {
+  const dependency = from?.find((item, index) => index > 0 && item.includes('@'));
+  if (!dependency) return undefined;
+  const scoped = dependency.startsWith('@');
+  const marker = scoped ? dependency.indexOf('@', 1) : dependency.indexOf('@');
+  return marker > 0 ? dependency.slice(0, marker) : dependency;
 }
 
 function isDependencyMap(value: unknown): value is Record<string, string> {

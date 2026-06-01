@@ -50,7 +50,7 @@ Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/) (p
 - **Manifest validation** — `package.json` completeness (name, version, description, repository, license, publisher, icon, engines)
 - **Metadata checks** — README, LICENSE, CHANGELOG presence
 - **File size warnings** — Warns at 5 MB, errors at 50 MB per file
-- **Dependency risk checks** — Warns about floating versions such as `latest` / `*` and non-registry sources such as GitHub, URL, file, link, and workspace specs. Suggestions include Socket.dev package links for confirmation and extra supply-chain context.
+- **Dependency risk checks** — Warns about floating versions such as `latest` / `*` and non-registry sources such as GitHub, URL, file, link, and workspace specs. Optional npm audit, Socket.dev, and Snyk confirmations add vulnerability and supply-chain context when enabled.
 
 ## CLI (CI/CD)
 
@@ -63,6 +63,7 @@ publishguard scan --fail-on error  # Exit non-zero on errors
 publishguard scan --include-gitignored # Include gitignored workspace files in secret/size scans
 publishguard scan --dependency-audit # Confirm known vulnerabilities with npm audit
 publishguard scan --socket-dev      # Confirm supply-chain alerts with Socket.dev CLI
+publishguard scan --snyk            # Confirm dependency vulnerabilities with Snyk CLI
 publishguard init                  # Generate safe ignore files
 publishguard fix                   # Auto-fix common issues
 publishguard fix --dry-run         # Preview fixes
@@ -104,6 +105,9 @@ Create a `.publishguardrc.json` in your project root:
   "socketDev": {
     "enabled": false
   },
+  "snyk": {
+    "enabled": false
+  },
   "exampleFiles": {
     "scanUnpublished": false,
     "scanGitHistory": true,
@@ -130,6 +134,8 @@ Docs and example files are quiet by default unless they are part of the publish 
 Dependency audits are opt-in because they can contact the npm registry and take longer than local checks. Enable them with `publishguard scan --dependency-audit`, set `dependencyAudit.enabled` in `.publishguardrc.json`, or turn on **Run npm audit to confirm vulnerable dependencies** in the VS Code settings webview.
 
 Socket.dev confirmation is also opt-in and requires the Socket CLI to be installed and configured. Enable it with `publishguard scan --socket-dev`, set `socketDev.enabled`, or turn on **Run Socket.dev CLI confirmation for supply-chain alerts** in the settings webview. PublishGuard reports medium, high, and critical Socket alerts while ignoring low-severity alerts by default to reduce noise.
+
+Snyk confirmation is opt-in and requires the Snyk CLI to be installed and authenticated. Enable it with `publishguard scan --snyk`, set `snyk.enabled`, or turn on **Run Snyk CLI confirmation for dependency vulnerabilities** in the settings webview. PublishGuard reports medium, high, and critical Snyk vulnerabilities while ignoring low-severity vulnerabilities by default to reduce noise.
 
 ## Packages
 

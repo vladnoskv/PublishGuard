@@ -139,4 +139,68 @@ describe('dependency scanner', () => {
 
     fs.rmSync(dir, { recursive: true, force: true });
   });
+
+  it('reports high severity Snyk vulnerabilities from a provided Snyk runner', async () => {
+    const dir = path.join(fixturesDir, 'snyk-project');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'package.json'),
+      JSON.stringify({
+        name: 'snyk-project',
+        version: '1.0.0',
+        dependencies: { lodash: '4.17.20' },
+      }, null, 2),
+    );
+
+    const issues = await scanDependencies(dir, {
+      snyk: true,
+      snykRunner: async () => ({
+        vulnerabilities: [
+          {
+            packageName: 'lodash',
+            title: 'Prototype Pollution',
+            severity: 'high',
+            version: '4.17.20',
+            from: ['snyk-project@1.0.0', 'lodash@4.17.20'],
+            url: 'https://security.snyk.io/vuln/SNYK-JS-LODASH-1018905',
+          },
+          {
+            packageName: 'debug',
+            title: 'Regular Expression Denial of Service',
+            severity: 'low',
+            version: '2.6.8',
+          },
+        ],
+      }),
+    });
+
+    expect(issues.some((issue) => issue.rule === 'dependency-snyk-vulnerability')).toBe(true);
+    expect(issues.some((issue) => issue.severity === 'error')).toBe(true);
+    expect(issues.some((issue) => issue.message.includes('lodash'))).toBe(true);
+    expect(issues.some((issue) => issue.suggestion?.includes('https://security.snyk.io/vuln/SNYK-JS-LODASH-1018905'))).toBe(true);
+    expect(issues.some((issue) => issue.message.includes('debug'))).toBe(false);
+
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('reports Snyk failure as a warning instead of failing the whole scan', async () => {
+    const dir = path.join(fixturesDir, 'snyk-failure-project');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'package.json'),
+      JSON.stringify({ name: 'snyk-failure-project', version: '1.0.0' }, null, 2),
+    );
+
+    const issues = await scanDependencies(dir, {
+      snyk: true,
+      snykRunner: async () => {
+        throw new Error('snyk unavailable');
+      },
+    });
+
+    expect(issues.some((issue) => issue.rule === 'dependency-snyk-unavailable')).toBe(true);
+    expect(issues.some((issue) => issue.message.includes('snyk unavailable'))).toBe(true);
+
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
 });

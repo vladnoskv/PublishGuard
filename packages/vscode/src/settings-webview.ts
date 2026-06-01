@@ -9,6 +9,7 @@ export interface SettingsWebviewState {
   includeGitIgnored: boolean;
   dependencyAudit: boolean;
   socketDev: boolean;
+  snyk: boolean;
   severityThreshold: Severity;
   ignore: string[];
   suppressions: Array<{ rule?: string; file?: string; fingerprint?: string; reason: string }>;
@@ -110,6 +111,10 @@ export function buildSettingsWebviewHtml(state: SettingsWebviewState): string {
         <div class="row">
           <input id="socketDev" name="socketDev" type="checkbox"${state.socketDev ? ' checked' : ''}>
           <label for="socketDev">Run Socket.dev CLI confirmation for supply-chain alerts</label>
+        </div>
+        <div class="row">
+          <input id="snyk" name="snyk" type="checkbox"${state.snyk ? ' checked' : ''}>
+          <label for="snyk">Run Snyk CLI confirmation for dependency vulnerabilities</label>
         </div>
         <label for="severityThreshold">Minimum severity shown in VS Code</label>
         <select id="severityThreshold" name="severityThreshold">
@@ -235,6 +240,7 @@ export function buildSettingsWebviewHtml(state: SettingsWebviewState): string {
           includeGitIgnored: field('includeGitIgnored').checked,
           dependencyAudit: field('dependencyAudit').checked,
           socketDev: field('socketDev').checked,
+          snyk: field('snyk').checked,
           severityThreshold: field('severityThreshold').value,
           ignore: lines('ignore'),
           suppressions: collectSuppressions(),

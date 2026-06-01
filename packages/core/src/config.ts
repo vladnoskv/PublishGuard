@@ -11,6 +11,7 @@ export interface ScanOptions {
   includeGitIgnored?: boolean;
   dependencyAudit?: boolean;
   socketDev?: boolean;
+  snyk?: boolean;
 }
 
 export interface ExampleFilesConfig {
@@ -43,6 +44,9 @@ export interface PublishGuardConfig {
     enabled: boolean;
   };
   socketDev?: {
+    enabled: boolean;
+  };
+  snyk?: {
     enabled: boolean;
   };
   exampleFiles: ExampleFilesConfig;
@@ -126,6 +130,8 @@ const DEFAULT_CONFIG: PublishGuardConfig = {
     'dependency-audit-unavailable': 'warning',
     'dependency-socket-alert': 'error',
     'dependency-socket-unavailable': 'warning',
+    'dependency-snyk-vulnerability': 'error',
+    'dependency-snyk-unavailable': 'warning',
   },
   ignore: [],
   suppressions: [],
@@ -137,6 +143,9 @@ const DEFAULT_CONFIG: PublishGuardConfig = {
     enabled: false,
   },
   socketDev: {
+    enabled: false,
+  },
+  snyk: {
     enabled: false,
   },
   exampleFiles: {
@@ -177,6 +186,8 @@ function mergeConfig(base: PublishGuardConfig, override: Partial<PublishGuardCon
   const overrideAudit = (override.dependencyAudit ?? {}) as Partial<{ enabled: boolean }>;
   const baseSocketDev = base.socketDev ?? { enabled: false };
   const overrideSocketDev = (override.socketDev ?? {}) as Partial<{ enabled: boolean }>;
+  const baseSnyk = base.snyk ?? { enabled: false };
+  const overrideSnyk = (override.snyk ?? {}) as Partial<{ enabled: boolean }>;
   const baseExampleFiles = base.exampleFiles ?? DEFAULT_CONFIG.exampleFiles;
   const overrideExampleFiles = (override.exampleFiles ?? {}) as Partial<ExampleFilesConfig>;
   return {
@@ -194,6 +205,9 @@ function mergeConfig(base: PublishGuardConfig, override: Partial<PublishGuardCon
     },
     socketDev: {
       enabled: overrideSocketDev.enabled ?? baseSocketDev.enabled,
+    },
+    snyk: {
+      enabled: overrideSnyk.enabled ?? baseSnyk.enabled,
     },
     exampleFiles: {
       scanUnpublished: overrideExampleFiles.scanUnpublished ?? baseExampleFiles.scanUnpublished,

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1
+
+- Added optional Snyk CLI dependency vulnerability confirmation in VS Code scans and settings.
+- Added `.publishguardrc.json` `snyk.enabled` support from the settings webview.
+- Updated package metadata for 0.3.1.
+
 ## 0.3.0
 
 - Added editor lightbulb and Problems quick-fix actions for "Ignore this warning" and "Ignore this type of warning".

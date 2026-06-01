@@ -90,6 +90,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     allIssues.push(...filterByConfig(await scanDependencies(projectRoot, {
       npmAudit: options.dependencyAudit ?? config.dependencyAudit?.enabled ?? false,
       socketDev: options.socketDev ?? config.socketDev?.enabled ?? false,
+      snyk: options.snyk ?? config.snyk?.enabled ?? false,
     }), config));
   }
 

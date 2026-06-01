@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.1 (2026-06-01)
+
+### Added
+
+- Added optional Snyk CLI dependency vulnerability confirmation through `publishguard scan --snyk`, `.publishguardrc.json` `snyk.enabled`, and the VS Code settings webview.
+- Snyk scanner failures now report a warning instead of failing the whole scan, matching npm audit and Socket.dev behavior.
+
+### Changed
+
+- Updated package, CLI, VS Code extension, and SARIF reporter metadata for 0.3.1.
+
 ## 0.3.0 (2026-06-01)
 
 ### Added

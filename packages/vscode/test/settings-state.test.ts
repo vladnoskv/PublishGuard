@@ -10,6 +10,7 @@ describe('settings state', () => {
       includeGitIgnored: true,
       dependencyAudit: true,
       socketDev: false,
+      snyk: true,
       severityThreshold: 'warning',
       ignore: [' fixtures/** ', '', 42],
       suppressions: [
@@ -36,6 +37,7 @@ describe('settings state', () => {
       includeGitIgnored: true,
       dependencyAudit: true,
       socketDev: false,
+      snyk: true,
       severityThreshold: 'warning',
       ignore: ['fixtures/**'],
       suppressions: [
@@ -62,6 +64,7 @@ describe('settings state', () => {
       includeGitIgnored: true,
       dependencyAudit: true,
       socketDev: true,
+      snyk: true,
       severityThreshold: 'info',
       ignore: [],
       suppressions: [],
@@ -78,6 +81,7 @@ describe('settings state', () => {
       includeGitIgnored: true,
       dependencyAudit: { enabled: true },
       socketDev: { enabled: true },
+      snyk: { enabled: true },
       rules: { 'trailing-slash': 'off' },
     });
   });

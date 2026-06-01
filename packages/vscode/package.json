@@ -2,7 +2,7 @@
   "name": "publishguard",
   "displayName": "PublishGuard",
   "description": "Pre-publish safety scanner for npm packages and VS Code extensions — catches secrets, sensitive files, and metadata issues before you publish.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publisher": "VladNoskov",
   "icon": "resources/icon.png",
   "engines": {
@@ -161,6 +161,11 @@
           "default": false,
           "description": "Run Socket.dev CLI confirmation for medium, high, and critical supply-chain alerts. Requires the Socket CLI to be installed and configured."
         },
+        "publishguard.snyk": {
+          "type": "boolean",
+          "default": false,
+          "description": "Run Snyk CLI confirmation for medium, high, and critical dependency vulnerabilities. Requires the Snyk CLI to be installed and authenticated."
+        },
         "publishguard.severityThreshold": {
           "type": "string",
           "default": "info",
@@ -295,7 +300,7 @@
     "package": "vsce package --no-dependencies"
   },
   "dependencies": {
-    "@publishguard/core": "0.3.0"
+    "@publishguard/core": "0.3.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

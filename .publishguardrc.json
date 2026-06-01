@@ -1,0 +1,24 @@
+{
+  "suppressions": [
+    {
+      "reason": "Reviewed false positive",
+      "rule": "trailing-slash",
+      "file": ".gitignore"
+    },
+    {
+      "reason": "Reviewed false positive",
+      "rule": "trailing-slash",
+      "file": ".npmignore"
+    },
+    {
+      "reason": "Reviewed rule-file suppression",
+      "rule": "leading-slash",
+      "file": ".gitignore"
+    },
+    {
+      "reason": "Reviewed rule-file suppression",
+      "rule": "leading-slash",
+      "file": ".npmignore"
+    }
+  ]
+}

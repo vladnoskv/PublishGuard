@@ -18,6 +18,7 @@ export const scanCommand = new Command('scan')
   .option('--include-gitignored', 'Include files matched by .gitignore in secret and size scans')
   .option('--dependency-audit', 'Run npm audit and report known vulnerable dependencies')
   .option('--socket-dev', 'Run Socket.dev CLI confirmation for medium/high supply-chain alerts')
+  .option('--snyk', 'Run Snyk CLI confirmation for medium/high dependency vulnerabilities')
   .action(async (dir: string, opts) => {
     const projectRoot = path.resolve(dir);
     const stagedFiles = opts.staged ? getStagedFiles(projectRoot) : undefined;
@@ -29,6 +30,7 @@ export const scanCommand = new Command('scan')
       includeGitIgnored: Boolean(opts.includeGitignored),
       dependencyAudit: Boolean(opts.dependencyAudit),
       socketDev: Boolean(opts.socketDev),
+      snyk: Boolean(opts.snyk),
     });
 
     if (opts.json) {

@@ -7,6 +7,7 @@ export interface SettingsMessage {
   includeGitIgnored: boolean;
   dependencyAudit: boolean;
   socketDev: boolean;
+  snyk: boolean;
   severityThreshold: Issue['severity'];
   ignore: string[];
   suppressions: Array<{ rule?: string; file?: string; fingerprint?: string; reason: string }>;
@@ -26,6 +27,7 @@ export function normalizeSettingsMessage(value: unknown): SettingsMessage | unde
     includeGitIgnored: candidate.includeGitIgnored === true,
     dependencyAudit: candidate.dependencyAudit === true,
     socketDev: candidate.socketDev === true,
+    snyk: candidate.snyk === true,
     severityThreshold: isReportSeverity(candidate.severityThreshold) ? candidate.severityThreshold : 'info',
     ignore: normalizeStringList(candidate.ignore),
     suppressions: normalizeSuppressions(candidate.suppressions),
@@ -36,7 +38,7 @@ export function normalizeSettingsMessage(value: unknown): SettingsMessage | unde
 
 export function settingsMessageToConfigPatch(message: SettingsMessage): Pick<
   PublishGuardConfig,
-  'includeGitIgnored' | 'ignore' | 'suppressions' | 'rules' | 'dependencyAudit' | 'socketDev' | 'exampleFiles'
+  'includeGitIgnored' | 'ignore' | 'suppressions' | 'rules' | 'dependencyAudit' | 'socketDev' | 'snyk' | 'exampleFiles'
 > {
   return {
     includeGitIgnored: message.includeGitIgnored,
@@ -45,6 +47,7 @@ export function settingsMessageToConfigPatch(message: SettingsMessage): Pick<
     rules: message.rules,
     dependencyAudit: { enabled: message.dependencyAudit },
     socketDev: { enabled: message.socketDev },
+    snyk: { enabled: message.snyk },
     exampleFiles: message.exampleFiles,
   };
 }

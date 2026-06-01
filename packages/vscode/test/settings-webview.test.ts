@@ -10,6 +10,7 @@ describe('settings webview', () => {
       includeGitIgnored: true,
       dependencyAudit: false,
       socketDev: false,
+      snyk: true,
       severityThreshold: 'info',
       ignore: ['fixtures/**'],
       suppressions: [{ rule: 'aws-access-key', file: 'docs/**', reason: 'Documented fake key' }],
@@ -27,6 +28,7 @@ describe('settings webview', () => {
 
     expect(html).toContain('href="#scan-settings"');
     expect(html).toContain('name="includeGitIgnored" type="checkbox" checked');
+    expect(html).toContain('name="snyk" type="checkbox" checked');
     expect(html).toContain('id="example-settings"');
     expect(html).toContain('name="exampleScanGitHistory" type="checkbox" checked');
     expect(html).toContain('name="exampleScanUnpublished" type="checkbox"');
@@ -36,5 +38,6 @@ describe('settings webview', () => {
     expect(html).toContain('id="settingsStatus"');
     expect(html).toContain('data-command="runScan"');
     expect(html).toContain('function collectRules()');
+    expect(html).toContain("snyk: field('snyk').checked");
   });
 });

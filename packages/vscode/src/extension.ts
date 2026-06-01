@@ -271,8 +271,9 @@ async function runScan(): Promise<ScanResult | null> {
         const scanResult = await scan({
           projectRoot: workspaceFolders[0].uri.fsPath,
           includeGitIgnored: await getIncludeGitIgnoredEnabled(workspaceFolders[0].uri),
-          dependencyAudit: getDependencyAuditEnabled(),
-          socketDev: getSocketDevEnabled(),
+          dependencyAudit: await getDependencyAuditEnabled(workspaceFolders[0].uri),
+          socketDev: await getSocketDevEnabled(workspaceFolders[0].uri),
+          snyk: await getSnykEnabled(workspaceFolders[0].uri),
         });
 
         progress.report({ message: 'Preparing report...' });
@@ -597,9 +598,10 @@ async function openSettingsWebview(context: vscode.ExtensionContext): Promise<vo
       nonce: createNonce(),
       scanOnSave: config.get<boolean>('scanOnSave', true),
       blockPublishOnError: config.get<boolean>('blockPublishOnError', true),
-      dependencyAudit: getDependencyAuditEnabled(),
+      dependencyAudit: await getDependencyAuditEnabled(workspaceFolder.uri),
       includeGitIgnored: await getIncludeGitIgnoredEnabled(workspaceFolder.uri),
-      socketDev: getSocketDevEnabled(),
+      socketDev: await getSocketDevEnabled(workspaceFolder.uri),
+      snyk: await getSnykEnabled(workspaceFolder.uri),
       severityThreshold: getSeverityThreshold(),
       ignore: Array.isArray(rc.ignore) ? rc.ignore.filter((item): item is string => typeof item === 'string') : [],
       suppressions: Array.isArray(rc.suppressions)
@@ -640,6 +642,7 @@ async function saveSettingsMessage(workspaceUri: vscode.Uri, message: SettingsMe
   await workspaceConfig.update('severityThreshold', message.severityThreshold, vscode.ConfigurationTarget.Workspace);
   await workspaceConfig.update('dependencyAudit', message.dependencyAudit, vscode.ConfigurationTarget.Workspace);
   await workspaceConfig.update('socketDev', message.socketDev, vscode.ConfigurationTarget.Workspace);
+  await workspaceConfig.update('snyk', message.snyk, vscode.ConfigurationTarget.Workspace);
 
   const configUri = vscode.Uri.joinPath(workspaceUri, '.publishguardrc.json');
   const rc = await readJsonObject(configUri);
@@ -647,8 +650,8 @@ async function saveSettingsMessage(workspaceUri: vscode.Uri, message: SettingsMe
   await vscode.workspace.fs.writeFile(configUri, Buffer.from(`${JSON.stringify(rc, null, 2)}\n`, 'utf-8'));
 }
 
-function getDependencyAuditEnabled(): boolean {
-  return vscode.workspace.getConfiguration('publishguard').get<boolean>('dependencyAudit', false);
+async function getDependencyAuditEnabled(workspaceUri?: vscode.Uri): Promise<boolean> {
+  return getScannerEnabled('dependencyAudit', workspaceUri);
 }
 
 async function getIncludeGitIgnoredEnabled(workspaceUri?: vscode.Uri): Promise<boolean> {
@@ -667,8 +670,39 @@ async function getIncludeGitIgnoredEnabled(workspaceUri?: vscode.Uri): Promise<b
   return config.get<boolean>('includeGitIgnored', false);
 }
 
-function getSocketDevEnabled(): boolean {
-  return vscode.workspace.getConfiguration('publishguard').get<boolean>('socketDev', false);
+async function getSocketDevEnabled(workspaceUri?: vscode.Uri): Promise<boolean> {
+  return getScannerEnabled('socketDev', workspaceUri);
+}
+
+async function getSnykEnabled(workspaceUri?: vscode.Uri): Promise<boolean> {
+  return getScannerEnabled('snyk', workspaceUri);
+}
+
+async function getScannerEnabled(
+  key: 'dependencyAudit' | 'socketDev' | 'snyk',
+  workspaceUri?: vscode.Uri,
+): Promise<boolean> {
+  const config = vscode.workspace.getConfiguration('publishguard');
+  const inspected = config.inspect<boolean>(key);
+  const configuredValue = inspected?.workspaceFolderValue
+    ?? inspected?.workspaceValue
+    ?? inspected?.globalValue;
+  if (typeof configuredValue === 'boolean') return configuredValue;
+
+  if (workspaceUri) {
+    const rc = await readJsonObject(vscode.Uri.joinPath(workspaceUri, '.publishguardrc.json'));
+    const scannerConfig = rc[key];
+    if (
+      scannerConfig &&
+      typeof scannerConfig === 'object' &&
+      !Array.isArray(scannerConfig) &&
+      typeof (scannerConfig as { enabled?: unknown }).enabled === 'boolean'
+    ) {
+      return (scannerConfig as { enabled: boolean }).enabled;
+    }
+  }
+
+  return config.get<boolean>(key, false);
 }
 
 async function updateWorkspaceSetting<T>(
