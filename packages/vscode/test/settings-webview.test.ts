@@ -33,5 +33,8 @@ describe('settings webview', () => {
     expect(html).toContain('data-rule="aws-access-key"');
     expect(html).toContain('data-suppression-row');
     expect(html).toContain('addSuppression');
+    expect(html).toContain('id="settingsStatus"');
+    expect(html).toContain('data-command="runScan"');
+    expect(html).toContain('function collectRules()');
   });
 });

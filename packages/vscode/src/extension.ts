@@ -5,7 +5,16 @@ import type { ExampleFilesConfig, PublishGuardConfig, ScanResult, Issue } from '
 import { PublishGuardTreeProvider } from './tree-view';
 import { PublishGuardQuickFix } from './quick-fix';
 import { buildSettingsWebviewHtml } from './settings-webview';
-import { addIgnoreGlob, buildSuppressionEntry, isSuppressionScope, normalizeIssueFile, type SuppressionScope } from './suppressions';
+import { addIgnoreGlob, buildSuppressionEntry, getFolderGlob, isSuppressionScope, normalizeIssueFile, type SuppressionScope } from './suppressions';
+import {
+  isRuleSeverity,
+  isSuppressionLike,
+  mergeExampleFiles,
+  mergeRuleSettings,
+  normalizeSettingsMessage,
+  settingsMessageToConfigPatch,
+  type SettingsMessage,
+} from './settings-state';
 
 let diagnosticCollection: vscode.DiagnosticCollection;
 let treeProvider: PublishGuardTreeProvider;
@@ -27,6 +36,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.languages.registerCodeActionsProvider(
       { scheme: 'file' },
       quickFix,
+      { providedCodeActionKinds: PublishGuardQuickFix.providedCodeActionKinds },
     ),
   );
 
@@ -83,6 +93,30 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('publishguard.addToPublishGuardIgnore', addToPublishGuardIgnore),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('publishguard.excludeIssueFile', (item) => excludeIssuePath(getIssueFromCommandArg(item), 'file')),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('publishguard.excludeIssueFolder', (item) => excludeIssuePath(getIssueFromCommandArg(item), 'folder')),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('publishguard.suppressActiveIssue', () => suppressIssue(getActivePublishGuardIssue(), 'exact')),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('publishguard.suppressActiveRuleEverywhere', () => suppressIssue(getActivePublishGuardIssue(), 'rule')),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('publishguard.excludeActiveFile', () => excludeIssuePath(getActivePublishGuardIssue(), 'file')),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('publishguard.excludeActiveFolder', () => excludeIssuePath(getActivePublishGuardIssue(), 'folder')),
   );
 
   context.subscriptions.push(
@@ -442,13 +476,26 @@ async function addToPublishGuardIgnore(fileName: string): Promise<void> {
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
   if (!workspaceFolder) return;
   const relativeFile = toWorkspaceRelativeFile(fileName);
+  await addPublishGuardIgnoreGlob(relativeFile);
+}
+
+async function excludeIssuePath(issue: Issue | undefined, scope: 'file' | 'folder'): Promise<void> {
+  if (!issue?.file) return;
+  const file = normalizeIssueFile(issue.file);
+  await addPublishGuardIgnoreGlob(scope === 'folder' ? getFolderGlob(file) : file);
+}
+
+async function addPublishGuardIgnoreGlob(glob: string): Promise<void> {
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+  if (!workspaceFolder) return;
+  const normalizedGlob = normalizeIssueFile(glob);
   const configUri = vscode.Uri.joinPath(workspaceFolder.uri, '.publishguardrc.json');
   const config = await readJsonObject(configUri);
   await vscode.workspace.fs.writeFile(
     configUri,
-    Buffer.from(`${JSON.stringify(addIgnoreGlob(config, relativeFile), null, 2)}\n`, 'utf-8'),
+    Buffer.from(`${JSON.stringify(addIgnoreGlob(config, normalizedGlob), null, 2)}\n`, 'utf-8'),
   );
-  vscode.window.showInformationMessage(`PublishGuard: Added ${relativeFile} to .publishguardrc.json ignore.`);
+  vscode.window.showInformationMessage(`PublishGuard: Added ${normalizedGlob} to .publishguardrc.json ignore.`);
   await runScan();
 }
 
@@ -457,6 +504,21 @@ function toWorkspaceRelativeFile(fileName: string): string {
     return normalizeIssueFile(vscode.workspace.asRelativePath(vscode.Uri.file(fileName), false));
   }
   return normalizeIssueFile(fileName);
+}
+
+function getActivePublishGuardIssue(): Issue | undefined {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) return undefined;
+  const diagnostics = diagnosticCollection.get(editor.document.uri) ?? [];
+  const active = editor.selection.active;
+  const diagnostic = diagnostics.find((item) => item.source === 'PublishGuard' && item.range.contains(active))
+    ?? diagnostics.find((item) => item.source === 'PublishGuard' && item.range.start.line === active.line);
+  if (!diagnostic) return undefined;
+  return getIssueFromCommandArg({
+    rule: diagnostic.code,
+    file: vscode.workspace.asRelativePath(editor.document.uri, false),
+    message: diagnostic.message,
+  });
 }
 
 async function exportMarkdownReport(): Promise<void> {
@@ -549,20 +611,28 @@ async function openSettingsWebview(context: vscode.ExtensionContext): Promise<vo
   };
 
   panel.webview.onDidReceiveMessage(async (message: unknown) => {
-    if (!isSettingsMessage(message)) return;
-    const saved = await saveSettingsMessage(workspaceFolder.uri, message);
-    if (!saved) return;
-    vscode.window.showInformationMessage('PublishGuard: Settings saved.');
-    await render();
-    if (message.command === 'runScan') {
-      await runScan();
+    const settingsMessage = normalizeSettingsMessage(message);
+    if (!settingsMessage) {
+      vscode.window.showErrorMessage('PublishGuard: Settings could not be saved because the form payload was invalid.');
+      return;
+    }
+
+    try {
+      await saveSettingsMessage(workspaceFolder.uri, settingsMessage);
+      vscode.window.showInformationMessage('PublishGuard: Settings saved.');
+      await render();
+      if (settingsMessage.command === 'runScan') {
+        await runScan();
+      }
+    } catch (error) {
+      vscode.window.showErrorMessage(`PublishGuard: Settings save failed: ${(error as Error).message}`);
     }
   }, undefined, context.subscriptions);
 
   await render();
 }
 
-async function saveSettingsMessage(workspaceUri: vscode.Uri, message: SettingsMessage): Promise<boolean> {
+async function saveSettingsMessage(workspaceUri: vscode.Uri, message: SettingsMessage): Promise<void> {
   const workspaceConfig = vscode.workspace.getConfiguration('publishguard');
   await workspaceConfig.update('scanOnSave', message.scanOnSave, vscode.ConfigurationTarget.Workspace);
   await workspaceConfig.update('blockPublishOnError', message.blockPublishOnError, vscode.ConfigurationTarget.Workspace);
@@ -571,53 +641,10 @@ async function saveSettingsMessage(workspaceUri: vscode.Uri, message: SettingsMe
   await workspaceConfig.update('dependencyAudit', message.dependencyAudit, vscode.ConfigurationTarget.Workspace);
   await workspaceConfig.update('socketDev', message.socketDev, vscode.ConfigurationTarget.Workspace);
 
-  if (!message.suppressions.every(isSuppressionLike)) {
-    vscode.window.showErrorMessage('PublishGuard: Suppressions must be an array with a reason on each entry.');
-    return false;
-  }
-
   const configUri = vscode.Uri.joinPath(workspaceUri, '.publishguardrc.json');
   const rc = await readJsonObject(configUri);
-  rc.ignore = message.ignore;
-  rc.suppressions = message.suppressions;
-  rc.rules = message.rules;
-  rc.exampleFiles = message.exampleFiles;
+  Object.assign(rc, settingsMessageToConfigPatch(message));
   await vscode.workspace.fs.writeFile(configUri, Buffer.from(`${JSON.stringify(rc, null, 2)}\n`, 'utf-8'));
-  return true;
-}
-
-interface SettingsMessage {
-  command: 'saveSettings' | 'runScan';
-  scanOnSave: boolean;
-  blockPublishOnError: boolean;
-  includeGitIgnored: boolean;
-  dependencyAudit: boolean;
-  socketDev: boolean;
-  severityThreshold: Issue['severity'];
-  ignore: string[];
-  suppressions: Array<{ rule?: string; file?: string; fingerprint?: string; reason: string }>;
-  rules: Record<string, Issue['severity'] | 'off'>;
-  exampleFiles: ExampleFilesConfig;
-}
-
-function isSettingsMessage(value: unknown): value is SettingsMessage {
-  if (!value || typeof value !== 'object') return false;
-  const message = value as Partial<SettingsMessage>;
-  return (
-    (message.command === 'saveSettings' || message.command === 'runScan') &&
-    typeof message.scanOnSave === 'boolean' &&
-    typeof message.blockPublishOnError === 'boolean' &&
-    typeof message.includeGitIgnored === 'boolean' &&
-    typeof message.dependencyAudit === 'boolean' &&
-    typeof message.socketDev === 'boolean' &&
-    (message.severityThreshold === 'error' || message.severityThreshold === 'warning' || message.severityThreshold === 'info') &&
-    Array.isArray(message.ignore) &&
-    message.ignore.every((item) => typeof item === 'string') &&
-    Array.isArray(message.suppressions) &&
-    message.suppressions.every(isSuppressionLike) &&
-    isRuleSettings(message.rules) &&
-    isExampleFilesConfig(message.exampleFiles)
-  );
 }
 
 function getDependencyAuditEnabled(): boolean {
@@ -630,55 +657,6 @@ function getIncludeGitIgnoredEnabled(): boolean {
 
 function getSocketDevEnabled(): boolean {
   return vscode.workspace.getConfiguration('publishguard').get<boolean>('socketDev', false);
-}
-
-function isSuppressionLike(value: unknown): value is { rule?: string; file?: string; fingerprint?: string; reason: string } {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const suppression = value as Record<string, unknown>;
-  return (
-    typeof suppression.reason === 'string' &&
-    suppression.reason.trim().length > 0 &&
-    (suppression.rule === undefined || typeof suppression.rule === 'string') &&
-    (suppression.file === undefined || typeof suppression.file === 'string') &&
-    (suppression.fingerprint === undefined || typeof suppression.fingerprint === 'string')
-  );
-}
-
-function mergeRuleSettings(
-  defaults: PublishGuardConfig['rules'],
-  override: unknown,
-): Record<string, PublishGuardConfig['rules'][string]> {
-  const rules = { ...defaults };
-  if (override && typeof override === 'object' && !Array.isArray(override)) {
-    for (const [rule, value] of Object.entries(override as Record<string, unknown>)) {
-      if (isRuleSeverity(value)) {
-        rules[rule] = value;
-      }
-    }
-  }
-  return rules;
-}
-
-function isRuleSettings(value: unknown): value is Record<string, Issue['severity'] | 'off'> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  return Object.values(value).every(isRuleSeverity);
-}
-
-function isRuleSeverity(value: unknown): value is Issue['severity'] | 'off' {
-  return value === 'error' || value === 'warning' || value === 'info' || value === 'off';
-}
-
-function mergeExampleFiles(defaults: ExampleFilesConfig, override: unknown): ExampleFilesConfig {
-  if (!override || typeof override !== 'object' || Array.isArray(override)) return defaults;
-  const candidate = override as Partial<ExampleFilesConfig>;
-  return {
-    scanUnpublished: typeof candidate.scanUnpublished === 'boolean' ? candidate.scanUnpublished : defaults.scanUnpublished,
-    scanGitHistory: typeof candidate.scanGitHistory === 'boolean' ? candidate.scanGitHistory : defaults.scanGitHistory,
-    dummySecretSeverity: isRuleSeverity(candidate.dummySecretSeverity) ? candidate.dummySecretSeverity : defaults.dummySecretSeverity,
-    patterns: Array.isArray(candidate.patterns)
-      ? candidate.patterns.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
-      : defaults.patterns,
-  };
 }
 
 function isExampleFilesConfig(value: unknown): value is ExampleFilesConfig {

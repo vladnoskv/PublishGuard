@@ -16,7 +16,7 @@ Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/) (p
 1. Open any workspace with a `package.json` — PublishGuard activates automatically
 2. Click the shield icon in the activity bar, or press `Ctrl+Shift+P` → **PublishGuard: Scan Project**
 3. Issues appear in the sidebar and Problems panel with quick-fix suggestions
-4. Right-click issues or use Problems quick fixes to ignore reviewed false positives by exact finding, file, folder, or rule in `.publishguardrc.json`
+4. Use the editor lightbulb, Problems quick fixes, or PublishGuard sidebar right-click menu to ignore a warning, ignore that warning type, or exclude a noisy file/folder in `.publishguardrc.json`
 5. Open **PublishGuard: Open Settings** to manage scan behavior, ignored globs, and reviewed false positives
 
 ### Commands

@@ -8,7 +8,7 @@ const program = new Command();
 program
   .name('publishguard')
   .description('Pre-publish safety scanner for npm and VS Code extensions')
-  .version('0.2.0');
+  .version('0.3.0');
 
 program.addCommand(scanCommand);
 program.addCommand(initCommand);

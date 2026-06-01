@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { generateSafeIgnoreFile } from '@publishguard/core';
-import { buildProblemSuppressionActions, normalizeIssueFile } from './suppressions';
+import { buildProblemExclusionActions, buildProblemSuppressionActions, normalizeIssueFile } from './suppressions';
 
 export class PublishGuardQuickFix implements vscode.CodeActionProvider {
   static readonly providedCodeActionKinds = [
@@ -50,6 +50,17 @@ export class PublishGuardQuickFix implements vscode.CodeActionProvider {
             file,
             message: diagnostic.message,
           }, choice.scope],
+        };
+        action.diagnostics = [diagnostic];
+        actions.push(action);
+      }
+
+      for (const choice of buildProblemExclusionActions(file)) {
+        const action = new vscode.CodeAction(choice.title, vscode.CodeActionKind.QuickFix);
+        action.command = {
+          command: 'publishguard.addToPublishGuardIgnore',
+          title: choice.title,
+          arguments: [choice.glob],
         };
         action.diagnostics = [diagnostic];
         actions.push(action);

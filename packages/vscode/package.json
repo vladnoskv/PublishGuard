@@ -2,7 +2,7 @@
   "name": "publishguard",
   "displayName": "PublishGuard",
   "description": "Pre-publish safety scanner for npm packages and VS Code extensions — catches secrets, sensitive files, and metadata issues before you publish.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "VladNoskov",
   "icon": "resources/icon.png",
   "engines": {
@@ -53,7 +53,7 @@
       },
       {
         "command": "publishguard.suppressIssue",
-        "title": "PublishGuard: Ignore This Problem"
+        "title": "PublishGuard: Ignore This Warning"
       },
       {
         "command": "publishguard.suppressRuleInFile",
@@ -73,7 +73,31 @@
       },
       {
         "command": "publishguard.suppressRuleEverywhere",
-        "title": "PublishGuard: Ignore Rule Everywhere"
+        "title": "PublishGuard: Ignore This Type of Warning"
+      },
+      {
+        "command": "publishguard.excludeIssueFile",
+        "title": "PublishGuard: Exclude This File"
+      },
+      {
+        "command": "publishguard.excludeIssueFolder",
+        "title": "PublishGuard: Exclude This Folder"
+      },
+      {
+        "command": "publishguard.suppressActiveIssue",
+        "title": "PublishGuard: Ignore Warning at Cursor"
+      },
+      {
+        "command": "publishguard.suppressActiveRuleEverywhere",
+        "title": "PublishGuard: Ignore Warning Type at Cursor"
+      },
+      {
+        "command": "publishguard.excludeActiveFile",
+        "title": "PublishGuard: Exclude Current File"
+      },
+      {
+        "command": "publishguard.excludeActiveFolder",
+        "title": "PublishGuard: Exclude Current Folder"
       },
       {
         "command": "publishguard.copyIssue",
@@ -160,10 +184,9 @@
           "description": "Expose the default settings webview value for dummy secret findings in docs and examples. The saved scanner value lives in .publishguardrc.json."
         }
       }
-    }
-  },
-  "menus": {
-    "view/title": [
+    },
+    "menus": {
+      "view/title": [
       {
         "command": "publishguard.scan",
         "when": "view == publishguard.issues",
@@ -174,8 +197,8 @@
         "when": "view == publishguard.issues",
         "group": "navigation@2"
       }
-    ],
-    "view/item/context": [
+      ],
+      "view/item/context": [
       {
         "command": "publishguard.openIssue",
         "when": "view == publishguard.issues && viewItem == issue",
@@ -217,6 +240,16 @@
         "group": "1_ignore@6"
       },
       {
+        "command": "publishguard.excludeIssueFile",
+        "when": "view == publishguard.issues && viewItem == issue",
+        "group": "1_ignore@7"
+      },
+      {
+        "command": "publishguard.excludeIssueFolder",
+        "when": "view == publishguard.issues && viewItem == issue",
+        "group": "1_ignore@8"
+      },
+      {
         "command": "publishguard.copyIssue",
         "when": "view == publishguard.issues && viewItem == issue",
         "group": "inline@1"
@@ -226,7 +259,30 @@
         "when": "view == publishguard.issues && viewItem == issue",
         "group": "2_modification@1"
       }
-    ]
+      ],
+      "editor/context": [
+      {
+        "command": "publishguard.suppressActiveIssue",
+        "when": "resourceScheme == file",
+        "group": "publishguard@1"
+      },
+      {
+        "command": "publishguard.suppressActiveRuleEverywhere",
+        "when": "resourceScheme == file",
+        "group": "publishguard@2"
+      },
+      {
+        "command": "publishguard.excludeActiveFile",
+        "when": "resourceScheme == file",
+        "group": "publishguard@3"
+      },
+      {
+        "command": "publishguard.excludeActiveFolder",
+        "when": "resourceScheme == file",
+        "group": "publishguard@4"
+      }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run build",
@@ -239,7 +295,7 @@
     "package": "vsce package --no-dependencies"
   },
   "dependencies": {
-    "@publishguard/core": "0.2.0"
+    "@publishguard/core": "0.3.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

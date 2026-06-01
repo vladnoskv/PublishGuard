@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+- Added editor lightbulb and Problems quick-fix actions for "Ignore this warning" and "Ignore this type of warning".
+- Added file and folder exclusion actions that write to `.publishguardrc.json` from Problems, editor context menus, and the PublishGuard sidebar.
+- Improved settings save handling so rule toggles, scanner toggles, and Save and Scan use a validated settings payload.
+- Fixed PublishGuard sidebar right-click menus by moving menu contributions under `contributes.menus`.
+
 ## 0.2.0
 
 - Added `publishguard.includeGitIgnored` so VS Code scans can include gitignored workspace files in secret and size checks without changing publish file resolution.

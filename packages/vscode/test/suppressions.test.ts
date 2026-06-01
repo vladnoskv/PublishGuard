@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Issue } from '@publishguard/core';
 import {
   addIgnoreGlob,
+  buildProblemExclusionActions,
   buildProblemSuppressionActions,
   buildSuppressionEntry,
   getFolderGlob,
@@ -56,6 +57,10 @@ describe('suppression helpers', () => {
   it('describes Problems quick-fix suppression actions by file, folder, and rule scope', () => {
     expect(buildProblemSuppressionActions('aws-access-key', 'src/config/secrets.ts')).toEqual([
       {
+        title: 'PublishGuard: Ignore this warning',
+        scope: 'exact',
+      },
+      {
         title: 'PublishGuard: Ignore aws-access-key in this file',
         scope: 'rule-file',
       },
@@ -72,7 +77,7 @@ describe('suppression helpers', () => {
         scope: 'folder',
       },
       {
-        title: 'PublishGuard: Ignore aws-access-key everywhere',
+        title: 'PublishGuard: Ignore this type of warning',
         scope: 'rule',
       },
     ]);
@@ -82,6 +87,19 @@ describe('suppression helpers', () => {
     expect(isSuppressionScope('rule-folder')).toBe(true);
     expect(isSuppressionScope('everything')).toBe(false);
     expect(isSuppressionScope(undefined)).toBe(false);
+  });
+
+  it('describes file and folder exclusion actions for noisy paths', () => {
+    expect(buildProblemExclusionActions('src/config/secrets.ts')).toEqual([
+      {
+        title: 'PublishGuard: Exclude this file',
+        glob: 'src/config/secrets.ts',
+      },
+      {
+        title: 'PublishGuard: Exclude this folder',
+        glob: 'src/config/**',
+      },
+    ]);
   });
 
   it('adds unique PublishGuard ignore globs to config objects', () => {

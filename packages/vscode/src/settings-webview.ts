@@ -60,8 +60,9 @@ export function buildSettingsWebviewHtml(state: SettingsWebviewState): string {
     button:hover { background: var(--vscode-button-hoverBackground); }
     button.secondary { color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
     button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
-    .actions { display: flex; flex-wrap: wrap; gap: 8px; position: sticky; bottom: 0; background: var(--vscode-editor-background); padding: 12px 0; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; position: sticky; bottom: 0; background: var(--vscode-editor-background); padding: 12px 0; }
     .hint { font-size: 12px; }
+    .status { color: var(--vscode-descriptionForeground); font-size: 12px; min-height: 18px; padding-left: 4px; }
     .rule-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px; }
     .rule-row, .suppression-row { border: 1px solid var(--vscode-panel-border); border-radius: 6px; padding: 10px; background: var(--vscode-sideBar-background); }
     .rule-row { display: grid; grid-template-columns: minmax(0, 1fr) 105px; gap: 8px; align-items: center; }
@@ -161,6 +162,7 @@ export function buildSettingsWebviewHtml(state: SettingsWebviewState): string {
       <div class="actions">
         <button type="button" data-command="saveSettings">Save Settings</button>
         <button type="button" data-command="runScan">Save and Scan</button>
+        <span id="settingsStatus" class="status" role="status" aria-live="polite"></span>
       </div>
     </div>
   </main>
@@ -171,13 +173,24 @@ export function buildSettingsWebviewHtml(state: SettingsWebviewState): string {
     const vscode = acquireVsCodeApi();
     const suppressionContainer = document.getElementById('suppressions');
     const suppressionTemplate = document.getElementById('suppressionTemplate');
+    const settingsStatus = document.getElementById('settingsStatus');
+
+    function setStatus(message) {
+      settingsStatus.textContent = message;
+    }
+
+    function field(name) {
+      return document.querySelector('[name="' + name + '"]');
+    }
 
     document.querySelector('[data-command="addSuppression"]').addEventListener('click', () => {
       suppressionContainer.insertAdjacentHTML('beforeend', suppressionTemplate.innerHTML);
+      setStatus('Added an ignored problem row.');
     });
 
     function lines(name) {
-      return document.querySelector('[name="' + name + '"]').value
+      const input = field(name);
+      return (input ? input.value : '')
         .split(/\\r?\\n/)
         .map((line) => line.trim())
         .filter(Boolean);
@@ -204,28 +217,32 @@ export function buildSettingsWebviewHtml(state: SettingsWebviewState): string {
     function collectRules() {
       const rules = {};
       document.querySelectorAll('[data-rule]').forEach((row) => {
-        rules[row.dataset.rule] = row.querySelector('[name="ruleSeverity"]').value;
+        const select = row.querySelector('[name="ruleSeverity"]');
+        if (row.dataset.rule && select) {
+          rules[row.dataset.rule] = select.value;
+        }
       });
       return rules;
     }
 
     document.querySelectorAll('button[data-command="saveSettings"], button[data-command="runScan"]').forEach((button) => {
       button.addEventListener('click', () => {
+        setStatus(button.dataset.command === 'runScan' ? 'Saving settings and starting scan...' : 'Saving settings...');
         vscode.postMessage({
           command: button.dataset.command,
-          scanOnSave: document.querySelector('[name="scanOnSave"]').checked,
-          blockPublishOnError: document.querySelector('[name="blockPublishOnError"]').checked,
-          includeGitIgnored: document.querySelector('[name="includeGitIgnored"]').checked,
-          dependencyAudit: document.querySelector('[name="dependencyAudit"]').checked,
-          socketDev: document.querySelector('[name="socketDev"]').checked,
-          severityThreshold: document.querySelector('[name="severityThreshold"]').value,
+          scanOnSave: field('scanOnSave').checked,
+          blockPublishOnError: field('blockPublishOnError').checked,
+          includeGitIgnored: field('includeGitIgnored').checked,
+          dependencyAudit: field('dependencyAudit').checked,
+          socketDev: field('socketDev').checked,
+          severityThreshold: field('severityThreshold').value,
           ignore: lines('ignore'),
           suppressions: collectSuppressions(),
           rules: collectRules(),
           exampleFiles: {
-            scanGitHistory: document.querySelector('[name="exampleScanGitHistory"]').checked,
-            scanUnpublished: document.querySelector('[name="exampleScanUnpublished"]').checked,
-            dummySecretSeverity: document.querySelector('[name="dummySecretSeverity"]').value,
+            scanGitHistory: field('exampleScanGitHistory').checked,
+            scanUnpublished: field('exampleScanUnpublished').checked,
+            dummySecretSeverity: field('dummySecretSeverity').value,
             patterns: lines('examplePatterns')
           }
         });

@@ -30,6 +30,11 @@ export interface ProblemSuppressionAction {
   scope: SuppressionScope;
 }
 
+export interface ProblemExclusionAction {
+  title: string;
+  glob: string;
+}
+
 export function addIgnoreGlob(config: Record<string, unknown>, glob: string): Record<string, unknown> {
   const normalized = normalizeIssueFile(glob);
   const ignore = Array.isArray(config.ignore)
@@ -78,6 +83,10 @@ export function buildProblemSuppressionActions(rule: string, file: string): Prob
   const normalizedRule = rule || 'issue';
   return [
     {
+      title: 'PublishGuard: Ignore this warning',
+      scope: 'exact',
+    },
+    {
       title: `PublishGuard: Ignore ${normalizedRule} in this file`,
       scope: 'rule-file',
     },
@@ -94,8 +103,22 @@ export function buildProblemSuppressionActions(rule: string, file: string): Prob
       scope: 'folder',
     },
     {
-      title: `PublishGuard: Ignore ${normalizedRule} everywhere`,
+      title: 'PublishGuard: Ignore this type of warning',
       scope: 'rule',
+    },
+  ];
+}
+
+export function buildProblemExclusionActions(file: string): ProblemExclusionAction[] {
+  const normalizedFile = normalizeIssueFile(file);
+  return [
+    {
+      title: 'PublishGuard: Exclude this file',
+      glob: normalizedFile,
+    },
+    {
+      title: 'PublishGuard: Exclude this folder',
+      glob: getFolderGlob(normalizedFile),
     },
   ];
 }

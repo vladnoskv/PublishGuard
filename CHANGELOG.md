@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.0 (2026-06-01)
+
+### Added
+
+- VS Code editor lightbulb and Problems quick fixes now include "Ignore this warning" and "Ignore this type of warning" actions.
+- PublishGuard sidebar right-click menus now expose warning suppression and file/folder exclusion actions.
+- File and folder exclusions can be added to `.publishguardrc.json` from the editor, Problems panel, or PublishGuard sidebar without modifying `.npmignore`.
+- The settings webview now saves rule toggles through a tested payload normalizer and gives immediate feedback for Save and Save and Scan.
+
+### Fixed
+
+- VS Code menu contributions are now registered under `contributes.menus`, so the PublishGuard sidebar context menu appears correctly.
+- Save and Scan now reports malformed settings payloads instead of silently doing nothing.
+
 ## 0.2.0 (2026-06-01)
 
 ### Added

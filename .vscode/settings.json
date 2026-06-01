@@ -1,0 +1,4 @@
+{
+    "publishguard.scanOnSave": true,
+    "publishguard.blockPublishOnError": true
+}
