@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.0
+
+- Added `publishguard.includeGitIgnored` so VS Code scans can include gitignored workspace files in secret and size checks without changing publish file resolution.
+- Added the include-gitignored toggle to the PublishGuard settings webview.
+
 ## 0.1.0
 
 - Initial release

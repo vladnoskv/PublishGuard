@@ -34,6 +34,7 @@ Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/) (p
 |---|---|---|
 | `publishguard.scanOnSave` | `true` | Auto-scan after saving `package.json` |
 | `publishguard.blockPublishOnError` | `true` | Block extension publishing if errors found |
+| `publishguard.includeGitIgnored` | `false` | Include gitignored workspace files in secret and size scans |
 | `publishguard.severityThreshold` | `info` | Minimum severity level to report |
 | `publishguard.scanGitHistoryExamples` | `true` | Default for scanning docs/examples that are present in git history |
 | `publishguard.scanUnpublishedExamples` | `false` | Default for scanning unpublished docs/examples |
@@ -58,6 +59,7 @@ publishguard scan                  # Pretty output
 publishguard scan --json           # JSON output
 publishguard scan --ci             # GitHub Actions annotations
 publishguard scan --fail-on error  # Exit non-zero on errors
+publishguard scan --include-gitignored # Include gitignored workspace files in secret/size scans
 publishguard scan --dependency-audit # Confirm known vulnerabilities with npm audit
 publishguard scan --socket-dev      # Confirm supply-chain alerts with Socket.dev CLI
 publishguard init                  # Generate safe ignore files
@@ -119,6 +121,8 @@ Create a `.publishguardrc.json` in your project root:
 ```
 
 Use `ignore` for file globs you never want PublishGuard to scan or report. Use `suppressions` for reviewed false positives; each suppression must include a reason and can match by `rule`, `file`, and/or `fingerprint`.
+
+By default, secret and size checks follow the publish artifact list so local-only files do not create noise. Use `publishguard scan --include-gitignored` or enable `publishguard.includeGitIgnored` in VS Code when you want a broader local sweep that also checks gitignored workspace files such as `.env` files. This does not change the files that npm or VS Code would publish.
 
 Docs and example files are quiet by default unless they are part of the publish artifact or have already appeared in git history. `exampleFiles.scanUnpublished` opts into scanning all matching docs/examples, and `dummySecretSeverity` lets you downgrade or turn off dummy-looking secrets such as fake keys in samples.
 

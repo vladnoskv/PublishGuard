@@ -1,8 +1,20 @@
 # Changelog
 
+## 0.2.0 (2026-06-01)
+
+### Added
+
+- `--include-gitignored` now performs a broader local secret and size sweep over gitignored workspace files while leaving publish file resolution unchanged.
+- VS Code setting `publishguard.includeGitIgnored` exposes the same local sweep mode in the extension and settings webview.
+
+### Changed
+
+- Turbo test tasks no longer declare coverage output when coverage is not generated, which removes misleading validation warnings.
+
 ## 0.1.0 (2026-05-31)
 
 ### Added
+
 - Initial MVP release
 - Core scanning engine with secret detection (10+ patterns)
 - Sensitive file detection (30+ patterns)

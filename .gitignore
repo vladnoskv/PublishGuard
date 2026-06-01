@@ -17,8 +17,12 @@ Thumbs.db
 *.log
 .turbo
 .npm-cache
-secrets*
-*.test.*
+secrets
+secrets/
+secrets.*
+**/secrets
+**/secrets/
+**/secrets.*
 
 docs
 docs/**

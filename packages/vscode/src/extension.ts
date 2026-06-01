@@ -211,6 +211,7 @@ async function runScan(): Promise<ScanResult | null> {
         treeProvider.setScanning('Scanning secrets and package risks...');
         const scanResult = await scan({
           projectRoot: workspaceFolders[0].uri.fsPath,
+          includeGitIgnored: getIncludeGitIgnoredEnabled(),
           dependencyAudit: getDependencyAuditEnabled(),
           socketDev: getSocketDevEnabled(),
         });
@@ -473,6 +474,7 @@ async function openSettingsWebview(context: vscode.ExtensionContext): Promise<vo
       scanOnSave: config.get<boolean>('scanOnSave', true),
       blockPublishOnError: config.get<boolean>('blockPublishOnError', true),
       dependencyAudit: getDependencyAuditEnabled(),
+      includeGitIgnored: getIncludeGitIgnoredEnabled(),
       socketDev: getSocketDevEnabled(),
       severityThreshold: getSeverityThreshold(),
       ignore: Array.isArray(rc.ignore) ? rc.ignore.filter((item): item is string => typeof item === 'string') : [],
@@ -502,6 +504,7 @@ async function saveSettingsMessage(workspaceUri: vscode.Uri, message: SettingsMe
   const workspaceConfig = vscode.workspace.getConfiguration('publishguard');
   await workspaceConfig.update('scanOnSave', message.scanOnSave, vscode.ConfigurationTarget.Workspace);
   await workspaceConfig.update('blockPublishOnError', message.blockPublishOnError, vscode.ConfigurationTarget.Workspace);
+  await workspaceConfig.update('includeGitIgnored', message.includeGitIgnored, vscode.ConfigurationTarget.Workspace);
   await workspaceConfig.update('severityThreshold', message.severityThreshold, vscode.ConfigurationTarget.Workspace);
   await workspaceConfig.update('dependencyAudit', message.dependencyAudit, vscode.ConfigurationTarget.Workspace);
   await workspaceConfig.update('socketDev', message.socketDev, vscode.ConfigurationTarget.Workspace);
@@ -525,6 +528,7 @@ interface SettingsMessage {
   command: 'saveSettings' | 'runScan';
   scanOnSave: boolean;
   blockPublishOnError: boolean;
+  includeGitIgnored: boolean;
   dependencyAudit: boolean;
   socketDev: boolean;
   severityThreshold: Issue['severity'];
@@ -541,6 +545,7 @@ function isSettingsMessage(value: unknown): value is SettingsMessage {
     (message.command === 'saveSettings' || message.command === 'runScan') &&
     typeof message.scanOnSave === 'boolean' &&
     typeof message.blockPublishOnError === 'boolean' &&
+    typeof message.includeGitIgnored === 'boolean' &&
     typeof message.dependencyAudit === 'boolean' &&
     typeof message.socketDev === 'boolean' &&
     (message.severityThreshold === 'error' || message.severityThreshold === 'warning' || message.severityThreshold === 'info') &&
@@ -555,6 +560,10 @@ function isSettingsMessage(value: unknown): value is SettingsMessage {
 
 function getDependencyAuditEnabled(): boolean {
   return vscode.workspace.getConfiguration('publishguard').get<boolean>('dependencyAudit', false);
+}
+
+function getIncludeGitIgnoredEnabled(): boolean {
+  return vscode.workspace.getConfiguration('publishguard').get<boolean>('includeGitIgnored', false);
 }
 
 function getSocketDevEnabled(): boolean {

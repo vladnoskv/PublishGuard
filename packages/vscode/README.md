@@ -11,6 +11,7 @@ Pre-publish safety scanner for npm packages and VS Code extensions. Catches secr
 - **Manifest checks**: Validates `package.json` completeness (name, version, description, repository, license, publisher, icon)
 - **Metadata checks**: Verifies README, LICENSE, CHANGELOG presence
 - **Dependency risk checks**: Warns about floating dependency versions and non-registry sources, confirms known vulnerabilities with npm audit, and can use the Socket.dev CLI for broader supply-chain alerts
+- **Optional local sweep**: Include gitignored workspace files in secret and size scans when you want to check local-only files before committing or publishing
 - **Quick fixes**: Right-click issues to auto-generate ignore rules or fix manifest problems
 - **Problems panel integration**: All issues show up in VS Code's Problems panel
 - **Settings webview**: Manage scan-on-save, severity, ignored globs, and suppressions without editing JSON by hand
@@ -37,6 +38,7 @@ Pre-publish safety scanner for npm packages and VS Code extensions. Catches secr
 
 - `publishguard.scanOnSave` (default: `true`) — Auto-scan after saving `package.json`
 - `publishguard.blockPublishOnError` (default: `true`) — Block extension publishing if errors found
+- `publishguard.includeGitIgnored` (default: `false`) — Include gitignored workspace files in secret and size scans without changing publish file resolution
 - `publishguard.dependencyAudit` (default: `false`) — Run npm audit during scans to confirm known vulnerable dependencies
 - `publishguard.socketDev` (default: `false`) — Run Socket.dev CLI confirmation for medium, high, and critical supply-chain alerts
 - `publishguard.severityThreshold` (default: `info`) — Minimum severity to report
@@ -61,6 +63,8 @@ Project-level ignore globs and reviewed false positives are stored in `.publishg
   ]
 }
 ```
+
+Default scans focus on files that would be published. Enable `publishguard.includeGitIgnored` for a broader local scan that also checks gitignored workspace files such as `.env`; this is useful for pre-commit reviews and does not change the package file list.
 
 ## CLI Companion
 

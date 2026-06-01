@@ -6,6 +6,7 @@ export interface SettingsWebviewState {
   nonce: string;
   scanOnSave: boolean;
   blockPublishOnError: boolean;
+  includeGitIgnored: boolean;
   dependencyAudit: boolean;
   socketDev: boolean;
   severityThreshold: Severity;
@@ -96,6 +97,10 @@ export function buildSettingsWebviewHtml(state: SettingsWebviewState): string {
         <div class="row">
           <input id="blockPublishOnError" name="blockPublishOnError" type="checkbox"${state.blockPublishOnError ? ' checked' : ''}>
           <label for="blockPublishOnError">Treat error findings as publish blockers</label>
+        </div>
+        <div class="row">
+          <input id="includeGitIgnored" name="includeGitIgnored" type="checkbox"${state.includeGitIgnored ? ' checked' : ''}>
+          <label for="includeGitIgnored">Include gitignored workspace files in secret and size scans</label>
         </div>
         <div class="row">
           <input id="dependencyAudit" name="dependencyAudit" type="checkbox"${state.dependencyAudit ? ' checked' : ''}>
@@ -210,6 +215,7 @@ export function buildSettingsWebviewHtml(state: SettingsWebviewState): string {
           command: button.dataset.command,
           scanOnSave: document.querySelector('[name="scanOnSave"]').checked,
           blockPublishOnError: document.querySelector('[name="blockPublishOnError"]').checked,
+          includeGitIgnored: document.querySelector('[name="includeGitIgnored"]').checked,
           dependencyAudit: document.querySelector('[name="dependencyAudit"]').checked,
           socketDev: document.querySelector('[name="socketDev"]').checked,
           severityThreshold: document.querySelector('[name="severityThreshold"]').value,

@@ -16,9 +16,12 @@ coverage
 Thumbs.db
 *.log
 .turbo
-secrets*
-*.test.*
-!test/settings-webview.test.ts
+secrets
+secrets/
+secrets.*
+**/secrets
+**/secrets/
+**/secrets.*
 
 docs
 docs/**

@@ -16,8 +16,12 @@ coverage
 Thumbs.db
 *.log
 .turbo
-secrets*
-*.test.*
+secrets
+secrets/
+secrets.*
+**/secrets
+**/secrets/
+**/secrets.*
 
 docs
 docs/**

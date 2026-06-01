@@ -2,7 +2,7 @@
   "name": "publishguard",
   "displayName": "PublishGuard",
   "description": "Pre-publish safety scanner for npm packages and VS Code extensions — catches secrets, sensitive files, and metadata issues before you publish.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "VladNoskov",
   "icon": "resources/icon.png",
   "engines": {
@@ -102,6 +102,11 @@
           "default": true,
           "description": "Block VS Code extension publishing if errors are found"
         },
+        "publishguard.includeGitIgnored": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include gitignored workspace files in secret and size scans. Publish file resolution and ignore validation are unchanged."
+        },
         "publishguard.dependencyAudit": {
           "type": "boolean",
           "default": false,
@@ -189,7 +194,7 @@
     "package": "vsce package --no-dependencies"
   },
   "dependencies": {
-    "@publishguard/core": "0.1.0"
+    "@publishguard/core": "0.2.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

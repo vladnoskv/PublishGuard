@@ -157,6 +157,12 @@ function getScanFiles(options: {
   const publishedSet = new Set(options.publishedFiles.map((file) => normalizeFile(file, options.projectRoot)));
   const filesSet = new Set(publishedSet);
 
+  if (options.includeGitIgnored) {
+    for (const file of getGitIgnoredWorkspaceFiles(options.projectRoot)) {
+      filesSet.add(file);
+    }
+  }
+
   if (options.exampleFiles.scanUnpublished) {
     for (const file of getExampleFiles(options.projectRoot, options.exampleFiles.patterns)) {
       filesSet.add(file);
@@ -175,8 +181,23 @@ function getScanFiles(options: {
   }
 
   // Published/exposed files are the authority for content scans. Gitignored
-  // files are noise only after package resolution has excluded them.
+  // files are added only when explicitly requested for local workspace sweeps.
   return files;
+}
+
+function getGitIgnoredWorkspaceFiles(projectRoot: string): string[] {
+  const gitignorePath = path.join(projectRoot, '.gitignore');
+  if (!fs.existsSync(gitignorePath)) return [];
+
+  const ig = require('ignore')().add(fs.readFileSync(gitignorePath, 'utf-8'));
+  return Array.from(new Set(glob.sync('**/*', {
+    cwd: projectRoot,
+    dot: true,
+    nodir: true,
+    ignore: ['.git/**', '**/.git/**', 'node_modules/**', '**/node_modules/**'],
+  })
+    .map((file) => normalizeFile(file))
+    .filter((file) => ig.ignores(file))));
 }
 
 function getExampleFiles(projectRoot: string, patterns: readonly string[]): string[] {

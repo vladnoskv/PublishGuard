@@ -7,6 +7,7 @@ describe('settings webview', () => {
       nonce: 'test-nonce',
       scanOnSave: true,
       blockPublishOnError: true,
+      includeGitIgnored: true,
       dependencyAudit: false,
       socketDev: false,
       severityThreshold: 'info',
@@ -25,6 +26,7 @@ describe('settings webview', () => {
     });
 
     expect(html).toContain('href="#scan-settings"');
+    expect(html).toContain('name="includeGitIgnored" type="checkbox" checked');
     expect(html).toContain('id="example-settings"');
     expect(html).toContain('name="exampleScanGitHistory" type="checkbox" checked');
     expect(html).toContain('name="exampleScanUnpublished" type="checkbox"');
