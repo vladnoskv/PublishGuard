@@ -13,6 +13,13 @@ export interface ScanOptions {
   socketDev?: boolean;
 }
 
+export interface ExampleFilesConfig {
+  scanUnpublished: boolean;
+  scanGitHistory: boolean;
+  dummySecretSeverity: Severity | 'off';
+  patterns: string[];
+}
+
 export interface SuppressionConfig {
   rule?: string;
   file?: string;
@@ -37,6 +44,7 @@ export interface PublishGuardConfig {
   socketDev?: {
     enabled: boolean;
   };
+  exampleFiles: ExampleFilesConfig;
 }
 
 const DEFAULT_CONFIG: PublishGuardConfig = {
@@ -129,6 +137,21 @@ const DEFAULT_CONFIG: PublishGuardConfig = {
   socketDev: {
     enabled: false,
   },
+  exampleFiles: {
+    scanUnpublished: false,
+    scanGitHistory: true,
+    dummySecretSeverity: 'info',
+    patterns: [
+      'docs/**',
+      'doc/**',
+      'examples/**',
+      'example/**',
+      'samples/**',
+      'sample/**',
+      '**/*.example.*',
+      '**/*.sample.*',
+    ],
+  },
 };
 
 export function loadConfig(projectRoot: string): PublishGuardConfig {
@@ -152,6 +175,8 @@ function mergeConfig(base: PublishGuardConfig, override: Partial<PublishGuardCon
   const overrideAudit = (override.dependencyAudit ?? {}) as Partial<{ enabled: boolean }>;
   const baseSocketDev = base.socketDev ?? { enabled: false };
   const overrideSocketDev = (override.socketDev ?? {}) as Partial<{ enabled: boolean }>;
+  const baseExampleFiles = base.exampleFiles ?? DEFAULT_CONFIG.exampleFiles;
+  const overrideExampleFiles = (override.exampleFiles ?? {}) as Partial<ExampleFilesConfig>;
   return {
     rules: { ...base.rules, ...override.rules },
     ignore: [...base.ignore, ...(override.ignore ?? [])],
@@ -167,7 +192,20 @@ function mergeConfig(base: PublishGuardConfig, override: Partial<PublishGuardCon
     socketDev: {
       enabled: overrideSocketDev.enabled ?? baseSocketDev.enabled,
     },
+    exampleFiles: {
+      scanUnpublished: overrideExampleFiles.scanUnpublished ?? baseExampleFiles.scanUnpublished,
+      scanGitHistory: overrideExampleFiles.scanGitHistory ?? baseExampleFiles.scanGitHistory,
+      dummySecretSeverity: overrideExampleFiles.dummySecretSeverity ?? baseExampleFiles.dummySecretSeverity,
+      patterns: [
+        ...baseExampleFiles.patterns,
+        ...(overrideExampleFiles.patterns ?? []),
+      ],
+    },
   };
+}
+
+export function getDefaultConfig(): PublishGuardConfig {
+  return mergeConfig(DEFAULT_CONFIG, {});
 }
 
 export function parseSize(sizeStr: string): number {

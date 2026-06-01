@@ -26,4 +26,8 @@ docs/**
 # IgnoreKit
 # Added from VS Code Explorer
 docs/superpowers
+/docs/
+docs/superpowers/
+docs/superpowers/plans/
+docs/superpowers/specs/
 # End IgnoreKit

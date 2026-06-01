@@ -35,6 +35,9 @@ Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/) (p
 | `publishguard.scanOnSave` | `true` | Auto-scan after saving `package.json` |
 | `publishguard.blockPublishOnError` | `true` | Block extension publishing if errors found |
 | `publishguard.severityThreshold` | `info` | Minimum severity level to report |
+| `publishguard.scanGitHistoryExamples` | `true` | Default for scanning docs/examples that are present in git history |
+| `publishguard.scanUnpublishedExamples` | `false` | Default for scanning unpublished docs/examples |
+| `publishguard.dummySecretSeverity` | `info` | Default severity for dummy-looking secret examples |
 
 ## What It Scans
 
@@ -79,13 +82,14 @@ Create a `.publishguardrc.json` in your project root:
 ```json
 {
   "rules": {
-    "no-env-files": "error",
-    "no-private-keys": "error",
-    "no-source-maps": "warning",
-    "no-log-files": "warning",
-    "no-test-data": "info",
-    "require-readme": "warning",
-    "require-license": "warning"
+    "env-file": "error",
+    "private-key": "error",
+    "source-map": "warning",
+    "log-file": "warning",
+    "test-data": "info",
+    "missing-readme": "warning",
+    "missing-license": "warning",
+    "jwt-token": "off"
   },
   "fileSize": {
     "warnThreshold": "5MB",
@@ -96,6 +100,12 @@ Create a `.publishguardrc.json` in your project root:
   },
   "socketDev": {
     "enabled": false
+  },
+  "exampleFiles": {
+    "scanUnpublished": false,
+    "scanGitHistory": true,
+    "dummySecretSeverity": "info",
+    "patterns": ["docs/**", "examples/**", "samples/**"]
   },
   "ignore": ["**/fixtures/**"],
   "suppressions": [
@@ -109,6 +119,8 @@ Create a `.publishguardrc.json` in your project root:
 ```
 
 Use `ignore` for file globs you never want PublishGuard to scan or report. Use `suppressions` for reviewed false positives; each suppression must include a reason and can match by `rule`, `file`, and/or `fingerprint`.
+
+Docs and example files are quiet by default unless they are part of the publish artifact or have already appeared in git history. `exampleFiles.scanUnpublished` opts into scanning all matching docs/examples, and `dummySecretSeverity` lets you downgrade or turn off dummy-looking secrets such as fake keys in samples.
 
 Dependency audits are opt-in because they can contact the npm registry and take longer than local checks. Enable them with `publishguard scan --dependency-audit`, set `dependencyAudit.enabled` in `.publishguardrc.json`, or turn on **Run npm audit to confirm vulnerable dependencies** in the VS Code settings webview.
 

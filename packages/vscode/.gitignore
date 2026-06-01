@@ -18,6 +18,7 @@ Thumbs.db
 .turbo
 secrets*
 *.test.*
+!test/settings-webview.test.ts
 
 docs
 docs/**

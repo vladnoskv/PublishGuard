@@ -117,6 +117,22 @@
           "default": "info",
           "enum": ["error", "warning", "info"],
           "description": "Minimum severity level to report"
+        },
+        "publishguard.scanGitHistoryExamples": {
+          "type": "boolean",
+          "default": true,
+          "description": "Expose the default settings webview value for scanning docs and examples that are present in git history. The saved scanner value lives in .publishguardrc.json."
+        },
+        "publishguard.scanUnpublishedExamples": {
+          "type": "boolean",
+          "default": false,
+          "description": "Expose the default settings webview value for scanning unpublished docs and examples. The saved scanner value lives in .publishguardrc.json."
+        },
+        "publishguard.dummySecretSeverity": {
+          "type": "string",
+          "default": "info",
+          "enum": ["off", "info", "warning", "error"],
+          "description": "Expose the default settings webview value for dummy secret findings in docs and examples. The saved scanner value lives in .publishguardrc.json."
         }
       }
     }

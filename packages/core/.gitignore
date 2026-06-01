@@ -18,6 +18,7 @@ Thumbs.db
 .turbo
 secrets*
 *.test.*
+!test/example-files-policy.test.ts
 
 docs
 docs/**

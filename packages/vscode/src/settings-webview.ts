@@ -1,4 +1,6 @@
-import type { Severity } from '@publishguard/core';
+import type { ExampleFilesConfig, PublishGuardConfig, Severity } from '@publishguard/core';
+
+export type RuleSettingValue = PublishGuardConfig['rules'][string];
 
 export interface SettingsWebviewState {
   nonce: string;
@@ -9,11 +11,23 @@ export interface SettingsWebviewState {
   severityThreshold: Severity;
   ignore: string[];
   suppressions: Array<{ rule?: string; file?: string; fingerprint?: string; reason: string }>;
+  rules: Record<string, RuleSettingValue>;
+  exampleFiles: ExampleFilesConfig;
 }
+
+const SEVERITIES: Array<Severity | 'off'> = ['error', 'warning', 'info', 'off'];
 
 export function buildSettingsWebviewHtml(state: SettingsWebviewState): string {
   const ignoreText = state.ignore.join('\n');
-  const suppressionsText = JSON.stringify(state.suppressions, null, 2);
+  const examplePatternText = state.exampleFiles.patterns.join('\n');
+  const ruleRows = Object.entries(state.rules)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([rule, value]) => renderRuleRow(rule, value))
+    .join('');
+  const suppressionRows = state.suppressions.length > 0
+    ? state.suppressions.map(renderSuppressionRow).join('')
+    : renderSuppressionRow({ reason: '' });
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -22,68 +36,175 @@ export function buildSettingsWebviewHtml(state: SettingsWebviewState): string {
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${escapeHtml(state.nonce)}';">
   <title>PublishGuard Settings</title>
   <style>
-    body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); background: var(--vscode-editor-background); margin: 0; padding: 24px; }
-    main { max-width: 840px; }
-    h1 { font-size: 24px; margin: 0 0 8px; }
-    h2 { font-size: 16px; margin: 24px 0 8px; }
+    * { box-sizing: border-box; }
+    body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); background: var(--vscode-editor-background); margin: 0; }
+    a { color: var(--vscode-textLink-foreground); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    main { display: grid; grid-template-columns: minmax(160px, 220px) minmax(0, 1fr); min-height: 100vh; }
+    nav { border-right: 1px solid var(--vscode-panel-border); padding: 18px 14px; position: sticky; top: 0; align-self: start; height: 100vh; }
+    nav h1 { font-size: 18px; margin: 0 0 16px; }
+    nav a { display: block; padding: 7px 8px; border-radius: 4px; color: var(--vscode-foreground); }
+    .content { max-width: 980px; padding: 24px; }
+    section { border-bottom: 1px solid var(--vscode-panel-border); padding: 0 0 24px; margin: 0 0 24px; }
+    h2 { font-size: 18px; margin: 0 0 8px; }
+    h3 { font-size: 14px; margin: 18px 0 8px; }
     p { color: var(--vscode-descriptionForeground); line-height: 1.5; margin: 0 0 14px; }
     label { display: block; margin: 12px 0 6px; font-weight: 600; }
-    .row { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+    .row { display: flex; align-items: flex-start; gap: 10px; margin: 10px 0; }
     .row label { margin: 0; font-weight: 400; }
-    textarea, select { box-sizing: border-box; width: 100%; color: var(--vscode-input-foreground); background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border); padding: 8px; }
-    textarea { min-height: 120px; font-family: var(--vscode-editor-font-family); }
-    button { color: var(--vscode-button-foreground); background: var(--vscode-button-background); border: 0; padding: 8px 12px; cursor: pointer; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+    textarea, input[type="text"], select { width: 100%; color: var(--vscode-input-foreground); background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border); padding: 8px; border-radius: 3px; }
+    textarea { min-height: 96px; font-family: var(--vscode-editor-font-family); }
+    button { color: var(--vscode-button-foreground); background: var(--vscode-button-background); border: 0; padding: 8px 12px; cursor: pointer; border-radius: 3px; }
     button:hover { background: var(--vscode-button-hoverBackground); }
-    .actions { display: flex; gap: 8px; margin-top: 18px; }
+    button.secondary { color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
+    button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; position: sticky; bottom: 0; background: var(--vscode-editor-background); padding: 12px 0; }
     .hint { font-size: 12px; }
+    .rule-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px; }
+    .rule-row, .suppression-row { border: 1px solid var(--vscode-panel-border); border-radius: 6px; padding: 10px; background: var(--vscode-sideBar-background); }
+    .rule-row { display: grid; grid-template-columns: minmax(0, 1fr) 105px; gap: 8px; align-items: center; }
+    .rule-name { overflow-wrap: anywhere; font-family: var(--vscode-editor-font-family); font-size: 12px; }
+    .suppression-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 8px 0; }
+    .suppression-row label { margin: 0; font-size: 12px; }
+    .full { grid-column: 1 / -1; }
+    @media (max-width: 720px) {
+      main { display: block; }
+      nav { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--vscode-panel-border); }
+      .content { padding: 18px; }
+      .suppression-row { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
   <main>
-    <h1>PublishGuard Settings</h1>
-    <p>Control how PublishGuard scans your package before publishing.</p>
+    <nav aria-label="Settings sections">
+      <h1>PublishGuard</h1>
+      <a href="#scan-settings">Scanning</a>
+      <a href="#example-settings">Docs and examples</a>
+      <a href="#ignore-settings">Ignore and whitelist</a>
+      <a href="#rule-settings">Rule toggles</a>
+    </nav>
+    <div class="content">
+      <section id="scan-settings">
+        <h2>Scanning</h2>
+        <p>Control when PublishGuard runs and which confirmation scanners are used.</p>
+        <div class="row">
+          <input id="scanOnSave" name="scanOnSave" type="checkbox"${state.scanOnSave ? ' checked' : ''}>
+          <label for="scanOnSave">Scan when package or ignore files are saved</label>
+        </div>
+        <div class="row">
+          <input id="blockPublishOnError" name="blockPublishOnError" type="checkbox"${state.blockPublishOnError ? ' checked' : ''}>
+          <label for="blockPublishOnError">Treat error findings as publish blockers</label>
+        </div>
+        <div class="row">
+          <input id="dependencyAudit" name="dependencyAudit" type="checkbox"${state.dependencyAudit ? ' checked' : ''}>
+          <label for="dependencyAudit">Run npm audit to confirm vulnerable dependencies</label>
+        </div>
+        <div class="row">
+          <input id="socketDev" name="socketDev" type="checkbox"${state.socketDev ? ' checked' : ''}>
+          <label for="socketDev">Run Socket.dev CLI confirmation for supply-chain alerts</label>
+        </div>
+        <label for="severityThreshold">Minimum severity shown in VS Code</label>
+        <select id="severityThreshold" name="severityThreshold">
+          ${severityOption('error', state.severityThreshold)}
+          ${severityOption('warning', state.severityThreshold)}
+          ${severityOption('info', state.severityThreshold)}
+        </select>
+      </section>
 
-    <h2>Scanning</h2>
-    <div class="row">
-      <input id="scanOnSave" name="scanOnSave" type="checkbox"${state.scanOnSave ? ' checked' : ''}>
-      <label for="scanOnSave">Scan when package or ignore files are saved</label>
-    </div>
-    <div class="row">
-      <input id="blockPublishOnError" name="blockPublishOnError" type="checkbox"${state.blockPublishOnError ? ' checked' : ''}>
-      <label for="blockPublishOnError">Treat error findings as publish blockers</label>
-    </div>
-    <div class="row">
-      <input id="dependencyAudit" name="dependencyAudit" type="checkbox"${state.dependencyAudit ? ' checked' : ''}>
-      <label for="dependencyAudit">Run npm audit to confirm vulnerable dependencies</label>
-    </div>
-    <div class="row">
-      <input id="socketDev" name="socketDev" type="checkbox"${state.socketDev ? ' checked' : ''}>
-      <label for="socketDev">Run Socket.dev CLI confirmation for supply-chain alerts</label>
-    </div>
-    <label for="severityThreshold">Minimum severity shown in VS Code</label>
-    <select id="severityThreshold" name="severityThreshold">
-      ${severityOption('error', state.severityThreshold)}
-      ${severityOption('warning', state.severityThreshold)}
-      ${severityOption('info', state.severityThreshold)}
-    </select>
+      <section id="example-settings">
+        <h2>Docs and examples</h2>
+        <p>Reduce noise from documented dummy values while still checking examples that are published or already committed.</p>
+        <div class="row">
+          <input id="exampleScanGitHistory" name="exampleScanGitHistory" type="checkbox"${state.exampleFiles.scanGitHistory ? ' checked' : ''}>
+          <label for="exampleScanGitHistory">Scan docs and examples that are present in git history</label>
+        </div>
+        <div class="row">
+          <input id="exampleScanUnpublished" name="exampleScanUnpublished" type="checkbox"${state.exampleFiles.scanUnpublished ? ' checked' : ''}>
+          <label for="exampleScanUnpublished">Also scan unpublished docs and examples</label>
+        </div>
+        <label for="dummySecretSeverity">Dummy secret findings in docs/examples</label>
+        <select id="dummySecretSeverity" name="dummySecretSeverity">
+          ${severityOption('off', state.exampleFiles.dummySecretSeverity)}
+          ${severityOption('info', state.exampleFiles.dummySecretSeverity)}
+          ${severityOption('warning', state.exampleFiles.dummySecretSeverity)}
+          ${severityOption('error', state.exampleFiles.dummySecretSeverity)}
+        </select>
+        <label for="examplePatterns">Docs/example file globs</label>
+        <textarea id="examplePatterns" name="examplePatterns" spellcheck="false">${escapeHtml(examplePatternText)}</textarea>
+      </section>
 
-    <h2>Whitelist and Ignore</h2>
-    <label for="ignore">Ignored file globs</label>
-    <textarea id="ignore" name="ignore" spellcheck="false">${escapeHtml(ignoreText)}</textarea>
-    <p class="hint">One glob per line, for example <code>fixtures/**</code>. These files are skipped before issues are reported.</p>
+      <section id="ignore-settings">
+        <h2>Ignore and whitelist</h2>
+        <label for="ignore">Ignored file globs</label>
+        <textarea id="ignore" name="ignore" spellcheck="false">${escapeHtml(ignoreText)}</textarea>
+        <p class="hint">One glob per line. Ignored files are skipped before issues are reported.</p>
 
-    <label for="suppressions">Issue suppressions</label>
-    <textarea id="suppressions" name="suppressions" spellcheck="false">${escapeHtml(suppressionsText)}</textarea>
-    <p class="hint">Use suppressions for reviewed false positives. Each entry needs a reason.</p>
+        <h3>Ignored problems</h3>
+        <p>Use these rows for reviewed false positives. Fingerprint is most precise; rule plus file glob is useful for recurring examples.</p>
+        <div id="suppressions">${suppressionRows}</div>
+        <button type="button" class="secondary" data-command="addSuppression">Add ignored problem</button>
+      </section>
 
-    <div class="actions">
-      <button type="button" data-command="saveSettings">Save Settings</button>
-      <button type="button" data-command="runScan">Save and Scan</button>
+      <section id="rule-settings">
+        <h2>Rule toggles</h2>
+        <p>Set a rule to off to disable it, or choose the severity that should be reported.</p>
+        <div class="rule-list">${ruleRows}</div>
+      </section>
+
+      <div class="actions">
+        <button type="button" data-command="saveSettings">Save Settings</button>
+        <button type="button" data-command="runScan">Save and Scan</button>
+      </div>
     </div>
   </main>
+  <template id="suppressionTemplate">
+    ${renderSuppressionRow({ reason: '' })}
+  </template>
   <script nonce="${escapeHtml(state.nonce)}">
     const vscode = acquireVsCodeApi();
-    document.querySelectorAll('button[data-command]').forEach((button) => {
+    const suppressionContainer = document.getElementById('suppressions');
+    const suppressionTemplate = document.getElementById('suppressionTemplate');
+
+    document.querySelector('[data-command="addSuppression"]').addEventListener('click', () => {
+      suppressionContainer.insertAdjacentHTML('beforeend', suppressionTemplate.innerHTML);
+    });
+
+    function lines(name) {
+      return document.querySelector('[name="' + name + '"]').value
+        .split(/\\r?\\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+    }
+
+    function collectSuppressions() {
+      return Array.from(document.querySelectorAll('[data-suppression-row]'))
+        .map((row) => ({
+          rule: row.querySelector('[name="suppressionRule"]').value.trim(),
+          file: row.querySelector('[name="suppressionFile"]').value.trim(),
+          fingerprint: row.querySelector('[name="suppressionFingerprint"]').value.trim(),
+          reason: row.querySelector('[name="suppressionReason"]').value.trim()
+        }))
+        .filter((item) => item.reason || item.rule || item.file || item.fingerprint)
+        .map((item) => {
+          const clean = { reason: item.reason };
+          if (item.rule) clean.rule = item.rule;
+          if (item.file) clean.file = item.file;
+          if (item.fingerprint) clean.fingerprint = item.fingerprint;
+          return clean;
+        });
+    }
+
+    function collectRules() {
+      const rules = {};
+      document.querySelectorAll('[data-rule]').forEach((row) => {
+        rules[row.dataset.rule] = row.querySelector('[name="ruleSeverity"]').value;
+      });
+      return rules;
+    }
+
+    document.querySelectorAll('button[data-command="saveSettings"], button[data-command="runScan"]').forEach((button) => {
       button.addEventListener('click', () => {
         vscode.postMessage({
           command: button.dataset.command,
@@ -92,8 +213,15 @@ export function buildSettingsWebviewHtml(state: SettingsWebviewState): string {
           dependencyAudit: document.querySelector('[name="dependencyAudit"]').checked,
           socketDev: document.querySelector('[name="socketDev"]').checked,
           severityThreshold: document.querySelector('[name="severityThreshold"]').value,
-          ignore: document.querySelector('[name="ignore"]').value,
-          suppressions: document.querySelector('[name="suppressions"]').value
+          ignore: lines('ignore'),
+          suppressions: collectSuppressions(),
+          rules: collectRules(),
+          exampleFiles: {
+            scanGitHistory: document.querySelector('[name="exampleScanGitHistory"]').checked,
+            scanUnpublished: document.querySelector('[name="exampleScanUnpublished"]').checked,
+            dummySecretSeverity: document.querySelector('[name="dummySecretSeverity"]').value,
+            patterns: lines('examplePatterns')
+          }
         });
       });
     });
@@ -102,8 +230,36 @@ export function buildSettingsWebviewHtml(state: SettingsWebviewState): string {
 </html>`;
 }
 
-function severityOption(value: Severity, selected: Severity): string {
+function renderRuleRow(rule: string, value: RuleSettingValue): string {
+  const severity = normalizeRuleValue(value);
+  return `<div class="rule-row" data-rule="${escapeHtml(rule)}">
+    <div class="rule-name">${escapeHtml(rule)}</div>
+    <select name="ruleSeverity" aria-label="${escapeHtml(rule)} severity">
+      ${SEVERITIES.map((candidate) => severityOption(candidate, severity)).join('')}
+    </select>
+  </div>`;
+}
+
+function renderSuppressionRow(value: { rule?: string; file?: string; fingerprint?: string; reason: string }): string {
+  return `<div class="suppression-row" data-suppression-row>
+    <label>Rule<input name="suppressionRule" type="text" value="${escapeAttribute(value.rule ?? '')}" placeholder="aws-access-key"></label>
+    <label>File glob<input name="suppressionFile" type="text" value="${escapeAttribute(value.file ?? '')}" placeholder="docs/**"></label>
+    <label class="full">Fingerprint<input name="suppressionFingerprint" type="text" value="${escapeAttribute(value.fingerprint ?? '')}" placeholder="rule:file:line:column"></label>
+    <label class="full">Reason<input name="suppressionReason" type="text" value="${escapeAttribute(value.reason)}" placeholder="Reviewed false positive"></label>
+  </div>`;
+}
+
+function normalizeRuleValue(value: RuleSettingValue): Severity | 'off' {
+  if (Array.isArray(value)) return value[0];
+  return value;
+}
+
+function severityOption(value: Severity | 'off', selected: Severity | 'off'): string {
   return `<option value="${value}"${value === selected ? ' selected' : ''}>${value}</option>`;
+}
+
+function escapeAttribute(value: string): string {
+  return escapeHtml(value).replace(/'/g, '&#39;');
 }
 
 function escapeHtml(value: string): string {

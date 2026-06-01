@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as nodeFs from 'node:fs';
-import { scan, generateSafeIgnoreFile } from '@publishguard/core';
-import type { ScanResult, Issue } from '@publishguard/core';
+import { scan, generateSafeIgnoreFile, getDefaultConfig } from '@publishguard/core';
+import type { ExampleFilesConfig, PublishGuardConfig, ScanResult, Issue } from '@publishguard/core';
 import { PublishGuardTreeProvider } from './tree-view';
 import { PublishGuardQuickFix } from './quick-fix';
 import { buildSettingsWebviewHtml } from './settings-webview';
@@ -467,6 +467,7 @@ async function openSettingsWebview(context: vscode.ExtensionContext): Promise<vo
   const render = async () => {
     const config = vscode.workspace.getConfiguration('publishguard');
     const rc = await readJsonObject(vscode.Uri.joinPath(workspaceFolder.uri, '.publishguardrc.json'));
+    const defaults = getDefaultConfig();
     panel.webview.html = buildSettingsWebviewHtml({
       nonce: createNonce(),
       scanOnSave: config.get<boolean>('scanOnSave', true),
@@ -478,6 +479,8 @@ async function openSettingsWebview(context: vscode.ExtensionContext): Promise<vo
       suppressions: Array.isArray(rc.suppressions)
         ? rc.suppressions.filter(isSuppressionLike)
         : [],
+      rules: mergeRuleSettings(defaults.rules, rc.rules),
+      exampleFiles: mergeExampleFiles(defaults.exampleFiles, rc.exampleFiles),
     });
   };
 
@@ -503,25 +506,17 @@ async function saveSettingsMessage(workspaceUri: vscode.Uri, message: SettingsMe
   await workspaceConfig.update('dependencyAudit', message.dependencyAudit, vscode.ConfigurationTarget.Workspace);
   await workspaceConfig.update('socketDev', message.socketDev, vscode.ConfigurationTarget.Workspace);
 
-  let suppressions: unknown;
-  try {
-    suppressions = JSON.parse(message.suppressions || '[]');
-  } catch {
-    vscode.window.showErrorMessage('PublishGuard: Suppressions must be valid JSON.');
-    return false;
-  }
-  if (!Array.isArray(suppressions) || !suppressions.every(isSuppressionLike)) {
+  if (!message.suppressions.every(isSuppressionLike)) {
     vscode.window.showErrorMessage('PublishGuard: Suppressions must be an array with a reason on each entry.');
     return false;
   }
 
   const configUri = vscode.Uri.joinPath(workspaceUri, '.publishguardrc.json');
   const rc = await readJsonObject(configUri);
-  rc.ignore = message.ignore
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  rc.suppressions = suppressions;
+  rc.ignore = message.ignore;
+  rc.suppressions = message.suppressions;
+  rc.rules = message.rules;
+  rc.exampleFiles = message.exampleFiles;
   await vscode.workspace.fs.writeFile(configUri, Buffer.from(`${JSON.stringify(rc, null, 2)}\n`, 'utf-8'));
   return true;
 }
@@ -533,8 +528,10 @@ interface SettingsMessage {
   dependencyAudit: boolean;
   socketDev: boolean;
   severityThreshold: Issue['severity'];
-  ignore: string;
-  suppressions: string;
+  ignore: string[];
+  suppressions: Array<{ rule?: string; file?: string; fingerprint?: string; reason: string }>;
+  rules: Record<string, Issue['severity'] | 'off'>;
+  exampleFiles: ExampleFilesConfig;
 }
 
 function isSettingsMessage(value: unknown): value is SettingsMessage {
@@ -547,8 +544,12 @@ function isSettingsMessage(value: unknown): value is SettingsMessage {
     typeof message.dependencyAudit === 'boolean' &&
     typeof message.socketDev === 'boolean' &&
     (message.severityThreshold === 'error' || message.severityThreshold === 'warning' || message.severityThreshold === 'info') &&
-    typeof message.ignore === 'string' &&
-    typeof message.suppressions === 'string'
+    Array.isArray(message.ignore) &&
+    message.ignore.every((item) => typeof item === 'string') &&
+    Array.isArray(message.suppressions) &&
+    message.suppressions.every(isSuppressionLike) &&
+    isRuleSettings(message.rules) &&
+    isExampleFilesConfig(message.exampleFiles)
   );
 }
 
@@ -569,6 +570,55 @@ function isSuppressionLike(value: unknown): value is { rule?: string; file?: str
     (suppression.rule === undefined || typeof suppression.rule === 'string') &&
     (suppression.file === undefined || typeof suppression.file === 'string') &&
     (suppression.fingerprint === undefined || typeof suppression.fingerprint === 'string')
+  );
+}
+
+function mergeRuleSettings(
+  defaults: PublishGuardConfig['rules'],
+  override: unknown,
+): Record<string, PublishGuardConfig['rules'][string]> {
+  const rules = { ...defaults };
+  if (override && typeof override === 'object' && !Array.isArray(override)) {
+    for (const [rule, value] of Object.entries(override as Record<string, unknown>)) {
+      if (isRuleSeverity(value)) {
+        rules[rule] = value;
+      }
+    }
+  }
+  return rules;
+}
+
+function isRuleSettings(value: unknown): value is Record<string, Issue['severity'] | 'off'> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  return Object.values(value).every(isRuleSeverity);
+}
+
+function isRuleSeverity(value: unknown): value is Issue['severity'] | 'off' {
+  return value === 'error' || value === 'warning' || value === 'info' || value === 'off';
+}
+
+function mergeExampleFiles(defaults: ExampleFilesConfig, override: unknown): ExampleFilesConfig {
+  if (!override || typeof override !== 'object' || Array.isArray(override)) return defaults;
+  const candidate = override as Partial<ExampleFilesConfig>;
+  return {
+    scanUnpublished: typeof candidate.scanUnpublished === 'boolean' ? candidate.scanUnpublished : defaults.scanUnpublished,
+    scanGitHistory: typeof candidate.scanGitHistory === 'boolean' ? candidate.scanGitHistory : defaults.scanGitHistory,
+    dummySecretSeverity: isRuleSeverity(candidate.dummySecretSeverity) ? candidate.dummySecretSeverity : defaults.dummySecretSeverity,
+    patterns: Array.isArray(candidate.patterns)
+      ? candidate.patterns.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      : defaults.patterns,
+  };
+}
+
+function isExampleFilesConfig(value: unknown): value is ExampleFilesConfig {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const candidate = value as Partial<ExampleFilesConfig>;
+  return (
+    typeof candidate.scanUnpublished === 'boolean' &&
+    typeof candidate.scanGitHistory === 'boolean' &&
+    isRuleSeverity(candidate.dummySecretSeverity) &&
+    Array.isArray(candidate.patterns) &&
+    candidate.patterns.every((item) => typeof item === 'string')
   );
 }
 

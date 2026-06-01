@@ -1,5 +1,7 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs';
+import * as childProcess from 'node:child_process';
+import { glob } from 'glob';
 import { getNpmPublishFiles, getVsixPublishFiles } from './scanners/file-list';
 import { scanSecrets } from './scanners/secrets';
 import { validateIgnoreFiles } from './scanners/ignore-validator';
@@ -8,7 +10,7 @@ import { scanFileSizes } from './scanners/file-size';
 import { scanDependencies } from './scanners/dependencies';
 import { loadConfig, parseSize } from './config';
 import type { ScanResult, Issue } from './types';
-import type { ScanOptions, SuppressionConfig } from './config';
+import type { ExampleFilesConfig, ScanOptions, SuppressionConfig } from './config';
 
 const micromatch = require('micromatch') as {
   isMatch(input: string, pattern: string | string[], options?: { dot?: boolean }): boolean;
@@ -40,6 +42,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     publishedFiles,
     stagedFiles: options.stagedFiles,
     includeGitIgnored: options.includeGitIgnored,
+    exampleFiles: config.exampleFiles,
   }), config.ignore);
 
   if (!options.skip?.includes('manifest')) {
@@ -91,7 +94,10 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   }
 
   const uniqueIssues = filterSuppressedIssues(
-    applyIssueIgnoreGlobs(deduplicateIssues(allIssues.map(withFingerprint)), config.ignore),
+    applyExampleFilePolicy(
+      applyIssueIgnoreGlobs(deduplicateIssues(allIssues.map(withFingerprint)), config.ignore),
+      config.exampleFiles,
+    ),
     config.suppressions,
   );
 
@@ -146,9 +152,22 @@ function getScanFiles(options: {
   publishedFiles: string[];
   stagedFiles?: string[];
   includeGitIgnored?: boolean;
+  exampleFiles: ExampleFilesConfig;
 }): string[] {
   const publishedSet = new Set(options.publishedFiles.map((file) => normalizeFile(file, options.projectRoot)));
-  let files = Array.from(publishedSet);
+  const filesSet = new Set(publishedSet);
+
+  if (options.exampleFiles.scanUnpublished) {
+    for (const file of getExampleFiles(options.projectRoot, options.exampleFiles.patterns)) {
+      filesSet.add(file);
+    }
+  } else if (options.exampleFiles.scanGitHistory) {
+    for (const file of getGitHistoryExampleFiles(options.projectRoot, options.exampleFiles.patterns)) {
+      filesSet.add(file);
+    }
+  }
+
+  let files = Array.from(filesSet);
 
   if (options.stagedFiles) {
     const stagedSet = new Set(options.stagedFiles.map((file) => normalizeFile(file, options.projectRoot)));
@@ -158,6 +177,40 @@ function getScanFiles(options: {
   // Published/exposed files are the authority for content scans. Gitignored
   // files are noise only after package resolution has excluded them.
   return files;
+}
+
+function getExampleFiles(projectRoot: string, patterns: readonly string[]): string[] {
+  return Array.from(new Set(patterns.flatMap((pattern) => glob.sync(pattern, {
+    cwd: projectRoot,
+    dot: true,
+    nodir: true,
+    ignore: ['node_modules/**', '**/node_modules/**', '.git/**', '**/.git/**'],
+  }).map((file) => normalizeFile(file)))));
+}
+
+function getGitHistoryExampleFiles(projectRoot: string, patterns: readonly string[]): string[] {
+  const historyFiles = getGitHistoryFiles(projectRoot);
+  if (historyFiles.length === 0) return [];
+  return historyFiles.filter((file) => (
+    fs.existsSync(path.join(projectRoot, file)) &&
+    micromatch.isMatch(normalizeIssuePath(file), Array.from(patterns), { dot: true })
+  ));
+}
+
+function getGitHistoryFiles(projectRoot: string): string[] {
+  try {
+    const stdout = childProcess.execFileSync('git', ['log', '--name-only', '--pretty=format:'], {
+      cwd: projectRoot,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    return Array.from(new Set(stdout
+      .split(/\r?\n/)
+      .map((line) => normalizeFile(line.trim(), projectRoot))
+      .filter(Boolean)));
+  } catch {
+    return [];
+  }
 }
 
 function normalizeFile(file: string, projectRoot?: string): string {
@@ -187,6 +240,37 @@ function withFingerprint(issue: Issue): Issue {
     ...issue,
     fingerprint: `${issue.rule}:${issue.file}:${line}:${column}`,
   };
+}
+
+function applyExampleFilePolicy(issues: Issue[], config: ExampleFilesConfig): Issue[] {
+  return issues.flatMap((issue) => {
+    if (!isExampleFile(issue.file, config.patterns) || !isDummySecretIssue(issue)) {
+      return [issue];
+    }
+    if (config.dummySecretSeverity === 'off') return [];
+    return [{
+      ...issue,
+      severity: config.dummySecretSeverity,
+      suggestion: [
+        issue.suggestion,
+        'This looks like an example or documentation false positive. Keep git-tracked or published examples reviewed, or add an issue suppression if it is intentionally safe.',
+      ].filter(Boolean).join(' '),
+    }];
+  });
+}
+
+function isExampleFile(file: string, patterns: readonly string[]): boolean {
+  return micromatch.isMatch(normalizeIssuePath(file), Array.from(patterns), { dot: true });
+}
+
+function isDummySecretIssue(issue: Issue): boolean {
+  if (issue.category !== 'secrets') return false;
+  const haystack = [
+    issue.file,
+    issue.message,
+    issue.location?.excerpt,
+  ].filter(Boolean).join(' ').toLowerCase();
+  return /\b(dummy|example|fake|fixture|placeholder|sample|synthetic|test)\b/.test(haystack);
 }
 
 function filterSuppressedIssues(issues: Issue[], suppressions: readonly unknown[]): Issue[] {
