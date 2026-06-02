@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeSettingsMessage, settingsMessageToConfigPatch } from '../src/settings-state';
+import { nativeExampleSettingsToConfig, normalizeSettingsMessage, settingsMessageToConfigPatch } from '../src/settings-state';
 
 describe('settings state', () => {
   it('normalizes save-and-scan messages and keeps rule toggles', () => {
@@ -11,6 +11,7 @@ describe('settings state', () => {
       dependencyAudit: true,
       socketDev: false,
       snyk: true,
+      scanMode: 'deep',
       severityThreshold: 'warning',
       ignore: [' fixtures/** ', '', 42],
       suppressions: [
@@ -38,6 +39,7 @@ describe('settings state', () => {
       dependencyAudit: true,
       socketDev: false,
       snyk: true,
+      scanMode: 'deep',
       severityThreshold: 'warning',
       ignore: ['fixtures/**'],
       suppressions: [
@@ -65,6 +67,7 @@ describe('settings state', () => {
       dependencyAudit: true,
       socketDev: true,
       snyk: true,
+      scanMode: 'quick',
       severityThreshold: 'info',
       ignore: [],
       suppressions: [],
@@ -79,10 +82,23 @@ describe('settings state', () => {
 
     expect(settingsMessageToConfigPatch(message!)).toMatchObject({
       includeGitIgnored: true,
+      scanMode: 'quick',
       dependencyAudit: { enabled: true },
       socketDev: { enabled: true },
       snyk: { enabled: true },
       rules: { 'trailing-slash': 'off' },
+    });
+  });
+
+  it('converts native example settings into scanner example config', () => {
+    expect(nativeExampleSettingsToConfig({
+      scanGitHistoryExamples: false,
+      scanUnpublishedExamples: true,
+      dummySecretSeverity: 'warning',
+    })).toEqual({
+      scanGitHistory: false,
+      scanUnpublished: true,
+      dummySecretSeverity: 'warning',
     });
   });
 });

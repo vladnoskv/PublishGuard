@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { Issue } from '../types';
+import { scanVsCodeCapabilities } from './vscode-capabilities';
 
 const METADATA_CHECKS: Array<{
   files: string[];
@@ -20,7 +21,11 @@ export interface ManifestScanResult {
   isVsCodeExtension: boolean;
 }
 
-export function scanManifest(rootDir: string): ManifestScanResult {
+export interface ManifestScanOptions {
+  capabilityScanDepth?: 'manifest' | 'full' | 'deep';
+}
+
+export function scanManifest(rootDir: string, options: ManifestScanOptions = {}): ManifestScanResult {
   const issues: Issue[] = [];
   const pkgPath = path.join(rootDir, 'package.json');
 
@@ -166,6 +171,7 @@ export function scanManifest(rootDir: string): ManifestScanResult {
         message: 'VS Code extensions should specify "engines.vscode" to indicate compatibility.',
       });
     }
+    pkgIssues.push(...scanVsCodeCapabilities(raw, rootDir, options.capabilityScanDepth ?? 'full'));
   }
 
   const metaIssues: Issue[] = [];

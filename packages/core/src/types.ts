@@ -36,6 +36,7 @@ export interface Issue {
 /** Full result of a scan operation. */
 export interface ScanResult {
   projectRoot: string;
+  scanMode: 'quick' | 'full' | 'deep';
   packageType: 'npm' | 'vscode' | 'both' | 'unknown';
   publishedFiles: string[];
   fileListMethod: string;

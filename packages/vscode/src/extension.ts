@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as nodeFs from 'node:fs';
 import { scan, generateSafeIgnoreFile, getDefaultConfig } from '@publishguard/core';
-import type { ExampleFilesConfig, PublishGuardConfig, ScanResult, Issue } from '@publishguard/core';
+import type { ExampleFilesConfig, PublishGuardConfig, ScanMode, ScanResult, Issue } from '@publishguard/core';
 import { PublishGuardTreeProvider } from './tree-view';
 import { PublishGuardQuickFix } from './quick-fix';
 import { buildSettingsWebviewHtml } from './settings-webview';
@@ -11,6 +11,7 @@ import {
   isSuppressionLike,
   mergeExampleFiles,
   mergeRuleSettings,
+  nativeExampleSettingsToConfig,
   normalizeSettingsMessage,
   settingsMessageToConfigPatch,
   type SettingsMessage,
@@ -42,6 +43,18 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('publishguard.scan', () => runScan()),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('publishguard.quickScan', () => runScan('quick')),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('publishguard.deepScan', () => runScan('deep')),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('publishguard.refreshIssues', () => runScan('quick')),
   );
 
   context.subscriptions.push(
@@ -234,7 +247,7 @@ export function activate(context: vscode.ExtensionContext) {
         doc.fileName.endsWith('.vscodeignore') ||
         doc.fileName.endsWith('.gitignore')
       ) {
-        await runScan();
+        await runScan('quick');
       }
     }),
   );
@@ -242,19 +255,20 @@ export function activate(context: vscode.ExtensionContext) {
   treeProvider.setIdle();
 }
 
-async function runScan(): Promise<ScanResult | null> {
+async function runScan(scanMode?: ScanMode): Promise<ScanResult | null> {
   const workspaceFolders = vscode.workspace.workspaceFolders;
   if (!workspaceFolders) {
     vscode.window.showWarningMessage('PublishGuard: Open a workspace folder to scan.');
     return null;
   }
+  const resolvedScanMode = scanMode ?? await getScanMode(workspaceFolders[0].uri);
 
   treeProvider.setScanning('Reading package and ignore rules...');
   try {
     const result = await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: 'PublishGuard',
+        title: `PublishGuard: ${resolvedScanMode} scan`,
         cancellable: false,
       },
       async (progress) => {
@@ -270,6 +284,7 @@ async function runScan(): Promise<ScanResult | null> {
         treeProvider.setScanning('Scanning secrets and package risks...');
         const scanResult = await scan({
           projectRoot: workspaceFolders[0].uri.fsPath,
+          scanMode: resolvedScanMode,
           includeGitIgnored: await getIncludeGitIgnoredEnabled(workspaceFolders[0].uri),
           dependencyAudit: await getDependencyAuditEnabled(workspaceFolders[0].uri),
           socketDev: await getSocketDevEnabled(workspaceFolders[0].uri),
@@ -292,6 +307,29 @@ async function runScan(): Promise<ScanResult | null> {
     vscode.window.showErrorMessage(`PublishGuard scan failed: ${(e as Error).message}`);
     return null;
   }
+}
+
+async function getScanMode(workspaceUri?: vscode.Uri): Promise<ScanMode> {
+  const config = vscode.workspace.getConfiguration('publishguard');
+  const inspected = config.inspect<string>('scanMode');
+  const configuredValue = inspected?.workspaceFolderValue
+    ?? inspected?.workspaceValue
+    ?? inspected?.globalValue;
+  const configuredMode = normalizeScanMode(configuredValue);
+  if (configuredMode) return configuredMode;
+
+  if (workspaceUri) {
+    const rc = await readJsonObject(vscode.Uri.joinPath(workspaceUri, '.publishguardrc.json'));
+    const rcMode = normalizeScanMode(rc.scanMode);
+    if (rcMode) return rcMode;
+  }
+
+  return normalizeScanMode(config.get<string>('scanMode', 'full')) ?? 'full';
+}
+
+function normalizeScanMode(value: unknown): ScanMode | undefined {
+  if (value === 'quick' || value === 'full' || value === 'deep') return value;
+  return undefined;
 }
 
 function getSeverityThreshold(): Issue['severity'] {
@@ -594,6 +632,11 @@ async function openSettingsWebview(context: vscode.ExtensionContext): Promise<vo
     const config = vscode.workspace.getConfiguration('publishguard');
     const rc = await readJsonObject(vscode.Uri.joinPath(workspaceFolder.uri, '.publishguardrc.json'));
     const defaults = getDefaultConfig();
+    const nativeExampleFiles = nativeExampleSettingsToConfig({
+      scanGitHistoryExamples: config.get<boolean>('scanGitHistoryExamples', defaults.exampleFiles.scanGitHistory),
+      scanUnpublishedExamples: config.get<boolean>('scanUnpublishedExamples', defaults.exampleFiles.scanUnpublished),
+      dummySecretSeverity: config.get<string>('dummySecretSeverity', defaults.exampleFiles.dummySecretSeverity),
+    });
     panel.webview.html = buildSettingsWebviewHtml({
       nonce: createNonce(),
       scanOnSave: config.get<boolean>('scanOnSave', true),
@@ -602,13 +645,17 @@ async function openSettingsWebview(context: vscode.ExtensionContext): Promise<vo
       includeGitIgnored: await getIncludeGitIgnoredEnabled(workspaceFolder.uri),
       socketDev: await getSocketDevEnabled(workspaceFolder.uri),
       snyk: await getSnykEnabled(workspaceFolder.uri),
+      scanMode: await getScanMode(workspaceFolder.uri),
       severityThreshold: getSeverityThreshold(),
       ignore: Array.isArray(rc.ignore) ? rc.ignore.filter((item): item is string => typeof item === 'string') : [],
       suppressions: Array.isArray(rc.suppressions)
         ? rc.suppressions.filter(isSuppressionLike)
         : [],
       rules: mergeRuleSettings(defaults.rules, rc.rules),
-      exampleFiles: mergeExampleFiles(defaults.exampleFiles, rc.exampleFiles),
+      exampleFiles: mergeExampleFiles(
+        mergeExampleFiles(defaults.exampleFiles, nativeExampleFiles),
+        rc.exampleFiles,
+      ),
     });
   };
 
@@ -643,6 +690,10 @@ async function saveSettingsMessage(workspaceUri: vscode.Uri, message: SettingsMe
   await workspaceConfig.update('dependencyAudit', message.dependencyAudit, vscode.ConfigurationTarget.Workspace);
   await workspaceConfig.update('socketDev', message.socketDev, vscode.ConfigurationTarget.Workspace);
   await workspaceConfig.update('snyk', message.snyk, vscode.ConfigurationTarget.Workspace);
+  await workspaceConfig.update('scanMode', message.scanMode, vscode.ConfigurationTarget.Workspace);
+  await workspaceConfig.update('scanGitHistoryExamples', message.exampleFiles.scanGitHistory, vscode.ConfigurationTarget.Workspace);
+  await workspaceConfig.update('scanUnpublishedExamples', message.exampleFiles.scanUnpublished, vscode.ConfigurationTarget.Workspace);
+  await workspaceConfig.update('dummySecretSeverity', message.exampleFiles.dummySecretSeverity, vscode.ConfigurationTarget.Workspace);
 
   const configUri = vscode.Uri.joinPath(workspaceUri, '.publishguardrc.json');
   const rc = await readJsonObject(configUri);

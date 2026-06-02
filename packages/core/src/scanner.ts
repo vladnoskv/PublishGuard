@@ -10,7 +10,7 @@ import { scanFileSizes } from './scanners/file-size';
 import { scanDependencies } from './scanners/dependencies';
 import { loadConfig, parseSize } from './config';
 import type { ScanResult, Issue } from './types';
-import type { ExampleFilesConfig, ScanOptions, SuppressionConfig } from './config';
+import type { ExampleFilesConfig, ScanMode, ScanOptions, SuppressionConfig } from './config';
 
 const micromatch = require('micromatch') as {
   isMatch(input: string, pattern: string | string[], options?: { dot?: boolean }): boolean;
@@ -21,6 +21,15 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   const { projectRoot } = options;
   const config = loadConfig(projectRoot);
   const allIssues: Issue[] = [];
+  const scanMode = normalizeScanMode(options.scanMode ?? config.scanMode);
+  const includeGitIgnored = options.includeGitIgnored ?? (scanMode === 'deep' ? true : config.includeGitIgnored);
+  const exampleFiles = scanMode === 'deep'
+    ? {
+      ...config.exampleFiles,
+      scanUnpublished: true,
+      scanGitHistory: true,
+    }
+    : config.exampleFiles;
 
   const packageType = options.packageType ?? detectPackageType(projectRoot);
 
@@ -41,12 +50,14 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     projectRoot,
     publishedFiles,
     stagedFiles: options.stagedFiles,
-    includeGitIgnored: options.includeGitIgnored ?? config.includeGitIgnored,
-    exampleFiles: config.exampleFiles,
+    includeGitIgnored,
+    exampleFiles,
   }), config.ignore);
 
   if (!options.skip?.includes('manifest')) {
-    const manifestResult = await scanManifest(projectRoot);
+    const manifestResult = await scanManifest(projectRoot, {
+      capabilityScanDepth: scanMode === 'quick' ? 'manifest' : scanMode,
+    });
     allIssues.push(...filterByConfig(manifestResult.issues, config));
   }
 
@@ -97,7 +108,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   const uniqueIssues = filterSuppressedIssues(
     applyExampleFilePolicy(
       applyIssueIgnoreGlobs(deduplicateIssues(allIssues.map(withFingerprint)), config.ignore),
-      config.exampleFiles,
+      exampleFiles,
     ),
     config.suppressions,
   );
@@ -115,6 +126,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
 
   return {
     projectRoot,
+    scanMode,
     packageType,
     publishedFiles,
     fileListMethod,
@@ -122,6 +134,11 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     summary: { errors, warnings, infos },
     durationMs: Date.now() - startTime,
   };
+}
+
+function normalizeScanMode(scanMode: ScanMode | undefined): ScanMode {
+  if (scanMode === 'quick' || scanMode === 'full' || scanMode === 'deep') return scanMode;
+  return 'full';
 }
 
 function detectPackageType(rootDir: string): 'npm' | 'vscode' | 'both' | 'unknown' {

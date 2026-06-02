@@ -24,6 +24,18 @@
         }
       },
       {
+        "command": "publishguard.quickScan",
+        "title": "PublishGuard: Quick Scan"
+      },
+      {
+        "command": "publishguard.deepScan",
+        "title": "PublishGuard: Deep Scan"
+      },
+      {
+        "command": "publishguard.refreshIssues",
+        "title": "PublishGuard: Refresh Issues"
+      },
+      {
         "command": "publishguard.fix",
         "title": "PublishGuard: Auto-Fix Issues"
       },
@@ -172,6 +184,12 @@
           "enum": ["error", "warning", "info"],
           "description": "Minimum severity level to report"
         },
+        "publishguard.scanMode": {
+          "type": "string",
+          "default": "full",
+          "enum": ["quick", "full", "deep"],
+          "description": "Default scan mode for PublishGuard scans. Quick skips source-derived capability analysis, full uses bounded source analysis, and deep broadens local/source coverage."
+        },
         "publishguard.scanGitHistoryExamples": {
           "type": "boolean",
           "default": true,
@@ -193,14 +211,29 @@
     "menus": {
       "view/title": [
       {
-        "command": "publishguard.scan",
+        "command": "publishguard.refreshIssues",
         "when": "view == publishguard.issues",
         "group": "navigation@1"
       },
       {
-        "command": "publishguard.openSettings",
+        "command": "publishguard.scan",
         "when": "view == publishguard.issues",
         "group": "navigation@2"
+      },
+      {
+        "command": "publishguard.quickScan",
+        "when": "view == publishguard.issues",
+        "group": "navigation@3"
+      },
+      {
+        "command": "publishguard.deepScan",
+        "when": "view == publishguard.issues",
+        "group": "navigation@4"
+      },
+      {
+        "command": "publishguard.openSettings",
+        "when": "view == publishguard.issues",
+        "group": "navigation@5"
       }
       ],
       "view/item/context": [

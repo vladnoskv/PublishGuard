@@ -1,4 +1,4 @@
-import type { ExampleFilesConfig, PublishGuardConfig, Severity } from '@publishguard/core';
+import type { ExampleFilesConfig, PublishGuardConfig, ScanMode, Severity } from '@publishguard/core';
 
 export type RuleSettingValue = PublishGuardConfig['rules'][string];
 
@@ -10,6 +10,7 @@ export interface SettingsWebviewState {
   dependencyAudit: boolean;
   socketDev: boolean;
   snyk: boolean;
+  scanMode: ScanMode;
   severityThreshold: Severity;
   ignore: string[];
   suppressions: Array<{ rule?: string; file?: string; fingerprint?: string; reason: string }>;
@@ -104,6 +105,13 @@ export function buildSettingsWebviewHtml(state: SettingsWebviewState): string {
           <input id="includeGitIgnored" name="includeGitIgnored" type="checkbox"${state.includeGitIgnored ? ' checked' : ''}>
           <label for="includeGitIgnored">Include gitignored workspace files in secret and size scans</label>
         </div>
+        <label for="scanMode">Default scan mode</label>
+        <select id="scanMode" name="scanMode">
+          ${scanModeOption('quick', state.scanMode)}
+          ${scanModeOption('full', state.scanMode)}
+          ${scanModeOption('deep', state.scanMode)}
+        </select>
+        <p class="hint">Quick skips source-derived capability analysis, full uses bounded source analysis, and deep broadens local/source coverage.</p>
         <div class="row">
           <input id="dependencyAudit" name="dependencyAudit" type="checkbox"${state.dependencyAudit ? ' checked' : ''}>
           <label for="dependencyAudit">Run npm audit to confirm vulnerable dependencies</label>
@@ -241,6 +249,7 @@ export function buildSettingsWebviewHtml(state: SettingsWebviewState): string {
           dependencyAudit: field('dependencyAudit').checked,
           socketDev: field('socketDev').checked,
           snyk: field('snyk').checked,
+          scanMode: field('scanMode').value,
           severityThreshold: field('severityThreshold').value,
           ignore: lines('ignore'),
           suppressions: collectSuppressions(),
@@ -284,6 +293,10 @@ function normalizeRuleValue(value: RuleSettingValue): Severity | 'off' {
 }
 
 function severityOption(value: Severity | 'off', selected: Severity | 'off'): string {
+  return `<option value="${value}"${value === selected ? ' selected' : ''}>${value}</option>`;
+}
+
+function scanModeOption(value: ScanMode, selected: ScanMode): string {
   return `<option value="${value}"${value === selected ? ' selected' : ''}>${value}</option>`;
 }
 

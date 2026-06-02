@@ -17,11 +17,11 @@ Thumbs.db
 *.log
 .turbo
 secrets
-secrets/
 secrets.*
 **/secrets
-**/secrets/
 **/secrets.*
+*.test.*
+*.spec.*
 
 docs
 docs/**

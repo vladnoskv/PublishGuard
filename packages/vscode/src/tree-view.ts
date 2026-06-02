@@ -74,7 +74,7 @@ export class PublishGuardTreeProvider implements vscode.TreeDataProvider<IssueTr
     this._status = 'idle';
     this.items = [
       new IssueTreeItem('Ready to scan', vscode.TreeItemCollapsibleState.None, 'idle'),
-      this.createActionItem('Scan', 'publishguard.scan', 'play'),
+      this.createActionItem('Refresh Issues', 'publishguard.refreshIssues', 'refresh'),
       this.createActionItem('Settings', 'publishguard.openSettings', 'settings-gear'),
     ];
     this._onDidChangeTreeData.fire(undefined);
@@ -94,7 +94,7 @@ export class PublishGuardTreeProvider implements vscode.TreeDataProvider<IssueTr
     this.items = [
       new IssueTreeItem('Scan failed', vscode.TreeItemCollapsibleState.None, 'failed'),
       new IssueTreeItem(message, vscode.TreeItemCollapsibleState.None),
-      this.createActionItem('Scan', 'publishguard.scan', 'play'),
+      this.createActionItem('Refresh Issues', 'publishguard.refreshIssues', 'refresh'),
       this.createActionItem('Settings', 'publishguard.openSettings', 'settings-gear'),
     ];
     this._onDidChangeTreeData.fire(undefined);
@@ -123,7 +123,7 @@ export class PublishGuardTreeProvider implements vscode.TreeDataProvider<IssueTr
       ),
     );
 
-    items.push(this.createActionItem('Scan', 'publishguard.scan', 'play'));
+    items.push(this.createActionItem('Refresh Issues', 'publishguard.refreshIssues', 'refresh'));
     items.push(this.createActionItem('Settings', 'publishguard.openSettings', 'settings-gear'));
 
     const categoryMap = new Map<string, Issue[]>();

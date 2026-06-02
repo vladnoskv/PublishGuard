@@ -205,4 +205,99 @@ describe('PublishGuard Core Scanner', () => {
     // Cleanup
     fs.rmSync(dir, { recursive: true, force: true });
   });
+
+  it('quick scan skips source-derived capability analysis', async () => {
+    const dir = path.join(fixturesDir, 'quick-source-capability-project');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(dir, 'package.json'),
+      JSON.stringify({
+        name: 'quick-source-capability-project',
+        version: '1.0.0',
+        publisher: 'test',
+        engines: { vscode: '^1.90.0' },
+        contributes: {
+          commands: [
+            { command: 'quickSource.openOutput', title: 'Quick Source: Open Output' },
+          ],
+        },
+      }, null, 2),
+    );
+    fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'src', 'extension.ts'),
+      "import * as vscode from 'vscode';\nvscode.languages.createDiagnosticCollection('quick-source');\n",
+    );
+
+    const result = await scan({ projectRoot: dir, scanMode: 'quick', skip: ['ignore-validation'] });
+
+    expect(result.scanMode).toBe('quick');
+    expect(result.issues.some((i) => i.rule === 'vscode-diagnostic-provider-missing-refresh-command')).toBe(false);
+
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('full scan includes bounded source-derived capability analysis', async () => {
+    const dir = path.join(fixturesDir, 'full-source-capability-project');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(dir, 'package.json'),
+      JSON.stringify({
+        name: 'full-source-capability-project',
+        version: '1.0.0',
+        publisher: 'test',
+        engines: { vscode: '^1.90.0' },
+        contributes: {
+          commands: [
+            { command: 'fullSource.openOutput', title: 'Full Source: Open Output' },
+          ],
+        },
+      }, null, 2),
+    );
+    fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'src', 'extension.ts'),
+      "import * as vscode from 'vscode';\nvscode.languages.createDiagnosticCollection('full-source');\n",
+    );
+
+    const result = await scan({ projectRoot: dir, scanMode: 'full', skip: ['ignore-validation'] });
+
+    expect(result.scanMode).toBe('full');
+    expect(result.issues.some((i) => i.rule === 'vscode-diagnostic-provider-missing-refresh-command')).toBe(true);
+
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('deep scan includes gitignored local files and unpublished examples', async () => {
+    const dir = path.join(fixturesDir, 'deep-local-sweep-project');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(dir, 'package.json'),
+      JSON.stringify({
+        name: 'deep-local-sweep-project',
+        version: '1.0.0',
+        files: ['index.js'],
+      }, null, 2),
+    );
+    fs.writeFileSync(path.join(dir, 'index.js'), 'module.exports = {};');
+    fs.writeFileSync(path.join(dir, '.gitignore'), '.env.local\n');
+    fs.writeFileSync(path.join(dir, '.env.local'), 'AWS_SECRET_ACCESS_KEY=abcdefghijklmnopqrstuvwxyzABCD1234567890');
+    fs.mkdirSync(path.join(dir, 'examples'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'examples', 'secret.txt'), 'AKIA1234567890ABCDEF');
+
+    const result = await scan({
+      projectRoot: dir,
+      scanMode: 'deep',
+      skip: ['ignore-validation'],
+    });
+
+    expect(result.scanMode).toBe('deep');
+    expect(result.issues.some((i) => i.file === '.env.local')).toBe(true);
+    expect(result.issues.some((i) => i.file === 'examples/secret.txt')).toBe(true);
+
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
 });

@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { scan } from '@publishguard/core';
+import type { ScanMode } from '@publishguard/core';
 import { printPrettyOutput } from '../formatters/pretty';
 import { printJsonOutput } from '../formatters/json';
 import { printCIOutput } from '../formatters/ci';
@@ -14,6 +15,10 @@ export const scanCommand = new Command('scan')
   .option('--skip <categories>', 'Comma-separated categories to skip')
   .option('--fail-on <severity>', 'Exit with non-zero code on this severity or higher', 'error')
   .option('--package-type <type>', 'Force package type: npm, vscode, or both')
+  .option('--scan-mode <mode>', 'Scan mode: quick, full, or deep')
+  .option('--quick', 'Run a quick scan without source-derived capability analysis')
+  .option('--full', 'Run the standard full scan')
+  .option('--deep', 'Run a deep scan with broader local and source analysis')
   .option('--staged', 'Only scan files staged for commit')
   .option('--include-gitignored', 'Include files matched by .gitignore in secret and size scans')
   .option('--dependency-audit', 'Run npm audit and report known vulnerable dependencies')
@@ -26,6 +31,7 @@ export const scanCommand = new Command('scan')
       projectRoot,
       skip: opts.skip?.split(',').map((s: string) => s.trim()),
       packageType: opts.packageType as 'npm' | 'vscode' | 'both' | undefined,
+      scanMode: resolveScanMode(opts),
       stagedFiles,
       includeGitIgnored: Boolean(opts.includeGitignored),
       dependencyAudit: Boolean(opts.dependencyAudit),
@@ -53,6 +59,15 @@ export const scanCommand = new Command('scan')
       process.exit(1);
     }
   });
+
+function resolveScanMode(opts: Record<string, unknown>): ScanMode | undefined {
+  if (opts.deep) return 'deep';
+  if (opts.quick) return 'quick';
+  if (opts.full) return 'full';
+  const scanMode = opts.scanMode;
+  if (scanMode === 'quick' || scanMode === 'full' || scanMode === 'deep') return scanMode;
+  return undefined;
+}
 
 function getStagedFiles(projectRoot: string): string[] {
   try {

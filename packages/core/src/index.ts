@@ -15,7 +15,7 @@ export { scanDependencies } from './scanners/dependencies';
 export { generateSarifReport } from './reporters/sarif-reporter';
 export { loadConfig, getDefaultConfig } from './config';
 export type { ScanResult, Issue, Severity, Category } from './types';
-export type { ScanOptions, PublishGuardConfig, ExampleFilesConfig } from './config';
+export type { ScanOptions, ScanMode, PublishGuardConfig, ExampleFilesConfig } from './config';
 export type { IgnoreValidationResult, IgnoreValidationOptions } from './scanners/ignore-validator';
 export type { ManifestScanResult } from './scanners/manifest';
 export type { SecretScanOptions } from './scanners/secrets';

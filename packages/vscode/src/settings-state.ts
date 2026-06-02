@@ -1,4 +1,4 @@
-import type { ExampleFilesConfig, Issue, PublishGuardConfig } from '@publishguard/core';
+import type { ExampleFilesConfig, Issue, PublishGuardConfig, ScanMode } from '@publishguard/core';
 
 export interface SettingsMessage {
   command: 'saveSettings' | 'runScan';
@@ -8,6 +8,7 @@ export interface SettingsMessage {
   dependencyAudit: boolean;
   socketDev: boolean;
   snyk: boolean;
+  scanMode: ScanMode;
   severityThreshold: Issue['severity'];
   ignore: string[];
   suppressions: Array<{ rule?: string; file?: string; fingerprint?: string; reason: string }>;
@@ -28,6 +29,7 @@ export function normalizeSettingsMessage(value: unknown): SettingsMessage | unde
     dependencyAudit: candidate.dependencyAudit === true,
     socketDev: candidate.socketDev === true,
     snyk: candidate.snyk === true,
+    scanMode: normalizeScanMode(candidate.scanMode),
     severityThreshold: isReportSeverity(candidate.severityThreshold) ? candidate.severityThreshold : 'info',
     ignore: normalizeStringList(candidate.ignore),
     suppressions: normalizeSuppressions(candidate.suppressions),
@@ -38,10 +40,11 @@ export function normalizeSettingsMessage(value: unknown): SettingsMessage | unde
 
 export function settingsMessageToConfigPatch(message: SettingsMessage): Pick<
   PublishGuardConfig,
-  'includeGitIgnored' | 'ignore' | 'suppressions' | 'rules' | 'dependencyAudit' | 'socketDev' | 'snyk' | 'exampleFiles'
+  'includeGitIgnored' | 'scanMode' | 'ignore' | 'suppressions' | 'rules' | 'dependencyAudit' | 'socketDev' | 'snyk' | 'exampleFiles'
 > {
   return {
     includeGitIgnored: message.includeGitIgnored,
+    scanMode: message.scanMode,
     ignore: message.ignore,
     suppressions: message.suppressions,
     rules: message.rules,
@@ -50,6 +53,24 @@ export function settingsMessageToConfigPatch(message: SettingsMessage): Pick<
     snyk: { enabled: message.snyk },
     exampleFiles: message.exampleFiles,
   };
+}
+
+export function nativeExampleSettingsToConfig(settings: {
+  scanGitHistoryExamples?: unknown;
+  scanUnpublishedExamples?: unknown;
+  dummySecretSeverity?: unknown;
+}): Partial<ExampleFilesConfig> {
+  const config: Partial<ExampleFilesConfig> = {};
+  if (typeof settings.scanGitHistoryExamples === 'boolean') {
+    config.scanGitHistory = settings.scanGitHistoryExamples;
+  }
+  if (typeof settings.scanUnpublishedExamples === 'boolean') {
+    config.scanUnpublished = settings.scanUnpublishedExamples;
+  }
+  if (isRuleSeverity(settings.dummySecretSeverity)) {
+    config.dummySecretSeverity = settings.dummySecretSeverity;
+  }
+  return config;
 }
 
 export function isSuppressionLike(value: unknown): value is { rule?: string; file?: string; fingerprint?: string; reason: string } {
@@ -98,6 +119,11 @@ export function isRuleSeverity(value: unknown): value is Issue['severity'] | 'of
 
 function isReportSeverity(value: unknown): value is Issue['severity'] {
   return value === 'error' || value === 'warning' || value === 'info';
+}
+
+function normalizeScanMode(value: unknown): ScanMode {
+  if (value === 'quick' || value === 'full' || value === 'deep') return value;
+  return 'full';
 }
 
 function normalizeRuleSettings(value: unknown): Record<string, Issue['severity'] | 'off'> {

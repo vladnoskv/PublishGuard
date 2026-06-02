@@ -5,6 +5,7 @@ export function printPrettyOutput(result: ScanResult): void {
   console.log('');
   console.log(chalk.bold.cyan('PublishGuard — Pre-Publish Safety Scan'));
   console.log(chalk.dim(`Scanned: ${result.projectRoot}`));
+  console.log(chalk.dim(`Scan mode: ${result.scanMode}`));
   console.log(chalk.dim(`Package type: ${result.packageType}`));
   console.log(chalk.dim(`Files to publish: ${result.publishedFiles.length}  (via ${result.fileListMethod})`));
   console.log(chalk.dim(`Duration: ${result.durationMs}ms`));

@@ -5,6 +5,7 @@ import type { Severity } from './types';
 export interface ScanOptions {
   projectRoot: string;
   packageType?: 'npm' | 'vscode' | 'both';
+  scanMode?: ScanMode;
   skip?: string[];
   failFast?: boolean;
   stagedFiles?: string[];
@@ -13,6 +14,8 @@ export interface ScanOptions {
   socketDev?: boolean;
   snyk?: boolean;
 }
+
+export type ScanMode = 'quick' | 'full' | 'deep';
 
 export interface ExampleFilesConfig {
   scanUnpublished: boolean;
@@ -30,6 +33,7 @@ export interface SuppressionConfig {
 
 export interface PublishGuardConfig {
   includeGitIgnored: boolean;
+  scanMode: ScanMode;
   rules: Record<string, Severity | 'off' | [Severity, Record<string, unknown>]>;
   ignore: string[];
   suppressions: SuppressionConfig[];
@@ -54,6 +58,7 @@ export interface PublishGuardConfig {
 
 const DEFAULT_CONFIG: PublishGuardConfig = {
   includeGitIgnored: false,
+  scanMode: 'full',
   rules: {
     'env-file': 'error',
     'private-key': 'error',
@@ -110,6 +115,21 @@ const DEFAULT_CONFIG: PublishGuardConfig = {
     'missing-version': 'error',
     'invalid-version': 'error',
     'missing-vscode-engine': 'warning',
+    'vscode-diagnostic-provider-missing-refresh-command': 'error',
+    'vscode-language-server-missing-restart-command': 'error',
+    'vscode-scm-provider-missing-refresh-command': 'error',
+    'vscode-formatter-missing-command': 'warning',
+    'vscode-test-provider-missing-refresh-command': 'warning',
+    'vscode-debugger-missing-command': 'warning',
+    'vscode-view-provider-missing-refresh-command': 'warning',
+    'vscode-auth-provider-missing-account-command': 'warning',
+    'vscode-task-provider-missing-refresh-command': 'warning',
+    'vscode-notebook-provider-missing-command': 'warning',
+    'vscode-terminal-provider-missing-command': 'warning',
+    'vscode-webview-missing-csp': 'warning',
+    'vscode-web-extension-node-api-usage': 'error',
+    'vscode-command-missing-activation-event': 'warning',
+    'vscode-capability-keyword-only': 'warning',
     'aws-access-key': 'error',
     'aws-secret-key': 'error',
     'github-token': 'error',
@@ -192,6 +212,7 @@ function mergeConfig(base: PublishGuardConfig, override: Partial<PublishGuardCon
   const overrideExampleFiles = (override.exampleFiles ?? {}) as Partial<ExampleFilesConfig>;
   return {
     includeGitIgnored: override.includeGitIgnored ?? base.includeGitIgnored,
+    scanMode: normalizeScanMode(override.scanMode ?? base.scanMode),
     rules: { ...base.rules, ...override.rules },
     ignore: [...base.ignore, ...(override.ignore ?? [])],
     suppressions: [...base.suppressions, ...(override.suppressions ?? [])],
@@ -219,6 +240,11 @@ function mergeConfig(base: PublishGuardConfig, override: Partial<PublishGuardCon
       ],
     },
   };
+}
+
+function normalizeScanMode(scanMode: unknown): ScanMode {
+  if (scanMode === 'quick' || scanMode === 'full' || scanMode === 'deep') return scanMode;
+  return 'full';
 }
 
 export function getDefaultConfig(): PublishGuardConfig {

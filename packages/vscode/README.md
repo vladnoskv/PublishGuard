@@ -9,6 +9,7 @@ Pre-publish safety scanner for npm packages and VS Code extensions. Catches secr
 - **Sensitive file detection**: Warns about `.env`, `.pem`, `.key`, `.log`, source maps, and 25+ other risky patterns
 - **Ignore file validation**: Checks `.npmignore`, `.vscodeignore`, `.gitignore` for missing rules and syntax errors
 - **Manifest checks**: Validates `package.json` completeness (name, version, description, repository, license, publisher, icon)
+- **VS Code capability checks**: Infers linter, diagnostic, language-server, SCM, formatter, testing, debugger, webview, auth, task, notebook, terminal, and web-extension behavior from manifest metadata plus lightweight source API signals, then warns when expected recovery, lifecycle, compatibility, or webview security affordances are missing
 - **Metadata checks**: Verifies README, LICENSE, CHANGELOG presence
 - **Dependency risk checks**: Warns about floating dependency versions and non-registry sources, confirms known vulnerabilities with npm audit, and can use Socket.dev or Snyk CLI checks for broader dependency risk context
 - **Optional local sweep**: Include gitignored workspace files in secret and size scans when you want to check local-only files before committing or publishing
@@ -30,6 +31,9 @@ Pre-publish safety scanner for npm packages and VS Code extensions. Catches secr
 | Command | Description |
 |---|---|
 | `PublishGuard: Scan Project` | Run a full scan on the current workspace |
+| `PublishGuard: Refresh Issues` | Quickly recompute PublishGuard diagnostics and sidebar findings |
+| `PublishGuard: Quick Scan` | Run a fast scan for save-time feedback |
+| `PublishGuard: Deep Scan` | Run a broader local/source scan before release |
 | `PublishGuard: Auto-Fix Issues` | Automatically fix common issues |
 | `PublishGuard: Generate Ignore Files` | Create safe `.npmignore` / `.vscodeignore` |
 | `PublishGuard: Show Issues` | Focus the PublishGuard sidebar |
@@ -39,6 +43,7 @@ Pre-publish safety scanner for npm packages and VS Code extensions. Catches secr
 
 - `publishguard.scanOnSave` (default: `true`) — Auto-scan after saving `package.json`
 - `publishguard.blockPublishOnError` (default: `true`) — Block extension publishing if errors found
+- `publishguard.scanMode` (default: `full`) — Default manual scan mode: `quick`, `full`, or `deep`
 - `publishguard.includeGitIgnored` (default: `false`) — Include gitignored workspace files in secret and size scans without changing publish file resolution
 - `publishguard.dependencyAudit` (default: `false`) — Run npm audit during scans to confirm known vulnerable dependencies
 - `publishguard.socketDev` (default: `false`) — Run Socket.dev CLI confirmation for medium, high, and critical supply-chain alerts
@@ -76,6 +81,8 @@ The settings page writes rule toggles, ignored globs, suppressions, dependency-a
 Snyk confirmation is opt-in and requires the Snyk CLI to be installed and authenticated. If Snyk cannot run, PublishGuard reports a warning instead of failing the whole scan.
 
 Default scans focus on files that would be published. Enable `publishguard.includeGitIgnored` for a broader local scan that also checks gitignored workspace files such as `.env`; this is useful for pre-commit reviews and does not change the package file list.
+
+Use quick scans for fast save-time feedback, full scans for normal manual review, and deep scans before release when you want broader local/source analysis. Deep scans include gitignored local files and unpublished docs/examples, but external npm audit, Socket.dev, and Snyk checks remain opt-in.
 
 ## CLI Companion
 

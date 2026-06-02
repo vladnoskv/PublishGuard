@@ -9,6 +9,13 @@ describe('VS Code Extension', () => {
   });
 
   it('contributes tree context menu actions through the VS Code manifest', () => {
+    expect(packageJson.contributes.commands).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ command: 'publishguard.scan' }),
+        expect.objectContaining({ command: 'publishguard.quickScan' }),
+        expect.objectContaining({ command: 'publishguard.deepScan' }),
+      ]),
+    );
     expect(packageJson.contributes.menus?.['view/item/context']).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ command: 'publishguard.suppressIssue' }),
@@ -18,5 +25,47 @@ describe('VS Code Extension', () => {
       ]),
     );
     expect(packageJson).not.toHaveProperty('menus');
+  });
+
+  it('contributes every public command that PublishGuard exposes to users', () => {
+    const contributedCommands = new Set(
+      packageJson.contributes.commands.map((command) => command.command),
+    );
+    const publicCommands = [
+      'publishguard.scan',
+      'publishguard.quickScan',
+      'publishguard.deepScan',
+      'publishguard.refreshIssues',
+      'publishguard.fix',
+      'publishguard.init',
+      'publishguard.showIssues',
+      'publishguard.openSettings',
+      'publishguard.copyMarkdownReport',
+      'publishguard.exportMarkdownReport',
+      'publishguard.installPreCommitHook',
+    ];
+
+    expect([...contributedCommands].sort()).toEqual(expect.arrayContaining(publicCommands));
+  });
+
+  it('keeps native settings aligned with settings webview-managed fields', () => {
+    const properties = packageJson.contributes.configuration.properties;
+    const requiredSettings = [
+      'publishguard.scanOnSave',
+      'publishguard.blockPublishOnError',
+      'publishguard.scanMode',
+      'publishguard.includeGitIgnored',
+      'publishguard.dependencyAudit',
+      'publishguard.socketDev',
+      'publishguard.snyk',
+      'publishguard.severityThreshold',
+      'publishguard.scanGitHistoryExamples',
+      'publishguard.scanUnpublishedExamples',
+      'publishguard.dummySecretSeverity',
+    ];
+
+    expect(Object.keys(properties).sort()).toEqual(expect.arrayContaining(requiredSettings));
+    expect(properties['publishguard.scanMode'].enum).toEqual(['quick', 'full', 'deep']);
+    expect(properties['publishguard.dummySecretSeverity'].enum).toEqual(['off', 'info', 'warning', 'error']);
   });
 });
