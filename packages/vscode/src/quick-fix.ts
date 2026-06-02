@@ -21,6 +21,22 @@ export class PublishGuardQuickFix implements vscode.CodeActionProvider {
       const rule = String(diagnostic.code ?? '');
       const file = normalizeIssueFile(vscode.workspace.asRelativePath(document.uri, false));
 
+      const manageAction = new vscode.CodeAction(
+        'PublishGuard: Manage finding...',
+        vscode.CodeActionKind.QuickFix,
+      );
+      manageAction.command = {
+        command: 'publishguard.manageDiagnostic',
+        title: 'Manage PublishGuard finding',
+        arguments: [{
+          rule,
+          file,
+          message: diagnostic.message,
+        }],
+      };
+      manageAction.diagnostics = [diagnostic];
+      actions.push(manageAction);
+
       // Add to PublishGuard ignore config action
       if (rule === 'env-file' || rule === 'private-key' || rule === 'credentials-file' ||
           rule === 'log-file' || rule === 'test-data' || rule === 'source-map' ||

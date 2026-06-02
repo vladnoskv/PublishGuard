@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.0 (2026-06-03)
+
+### Added
+
+- Added VS Code commands to refresh diagnostics, clear diagnostics, and change the PublishGuard severity filter from the command palette and sidebar.
+- Added **PublishGuard: Manage Finding** so the active diagnostic can be opened, revealed, ignored, excluded, refreshed, filtered, or cleared from one menu.
+- Added Explorer right-click actions for adding reviewed false-positive files and folders to `.publishguardrc.json` `ignore`.
+
+### Changed
+
+- Severity filter changes now re-filter the last raw scan result instead of requiring a new scan to restore hidden lower-severity findings.
+- Updated package, CLI, VS Code extension, and lockfile metadata for 0.5.0.
+
 ## 0.4.1 (2026-06-02)
 
 ### Changed

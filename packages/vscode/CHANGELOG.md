@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0
+
+- Added `PublishGuard: Refresh Diagnostics`, `PublishGuard: Clear Diagnostics`, and `PublishGuard: Set Severity Filter`.
+- Added `PublishGuard: Manage Finding` for diagnostics lightbulb and Problems workflows, with actions to open, reveal, ignore, exclude, refresh, adjust severity, or clear diagnostics.
+- Added Explorer right-click actions to add reviewed false-positive files and folders to `.publishguardrc.json` `ignore`.
+- Severity filter changes now re-filter the last raw scan result without requiring a new scan to restore hidden findings.
+- Updated package metadata for 0.5.0.
+
 ## 0.4.1
 
 - Suppression and project ignore-rule actions now save the rule without automatically rescanning.

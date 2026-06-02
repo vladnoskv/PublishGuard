@@ -5,6 +5,7 @@ import type { ExampleFilesConfig, PublishGuardConfig, ScanMode, ScanResult, Issu
 import { PublishGuardTreeProvider } from './tree-view';
 import { PublishGuardQuickFix } from './quick-fix';
 import { buildSettingsWebviewHtml } from './settings-webview';
+import { buildSeverityQuickPickItems, filterScanResultBySeverity, normalizeExplorerIgnoreTarget } from './diagnostic-actions';
 import { addIgnoreGlob, buildSuppressionEntry, getFolderGlob, isSuppressionScope, normalizeIssueFile, type SuppressionScope } from './suppressions';
 import {
   isRuleSeverity,
@@ -20,6 +21,7 @@ import {
 let diagnosticCollection: vscode.DiagnosticCollection;
 let treeProvider: PublishGuardTreeProvider;
 let lastResult: ScanResult | null = null;
+let lastRawResult: ScanResult | null = null;
 
 export function activate(context: vscode.ExtensionContext) {
   diagnosticCollection = vscode.languages.createDiagnosticCollection('publishguard');
@@ -54,7 +56,19 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('publishguard.refreshIssues', () => runScan('quick')),
+    vscode.commands.registerCommand('publishguard.refreshIssues', () => runScan()),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('publishguard.refreshDiagnostics', () => runScan()),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('publishguard.clearDiagnostics', clearPublishGuardDiagnostics),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('publishguard.setSeverityThreshold', setSeverityThreshold),
   );
 
   context.subscriptions.push(
@@ -85,6 +99,12 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand('publishguard.manageDiagnostic', (issue) =>
+      manageDiagnostic(getIssueFromCommandArg(issue) ?? getActivePublishGuardIssue()),
+    ),
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand('publishguard.suppressRuleInFile', (item) => suppressIssue(getIssueFromCommandArg(item), 'rule-file')),
   );
 
@@ -106,6 +126,18 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('publishguard.addToPublishGuardIgnore', addToPublishGuardIgnore),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('publishguard.ignoreExplorerFile', (uri, selectedUris) =>
+      addExplorerPathsToPublishGuardIgnore(uri, selectedUris, false),
+    ),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('publishguard.ignoreExplorerFolder', (uri, selectedUris) =>
+      addExplorerPathsToPublishGuardIgnore(uri, selectedUris, true),
+    ),
   );
 
   context.subscriptions.push(
@@ -222,7 +254,8 @@ export function activate(context: vscode.ExtensionContext) {
         },
       );
 
-      const filteredResult = filterScanResult(result, getSeverityThreshold());
+      lastRawResult = result;
+      const filteredResult = filterScanResultBySeverity(result, getSeverityThreshold());
       lastResult = filteredResult;
       updateScanUi(filteredResult);
 
@@ -293,7 +326,8 @@ async function runScan(scanMode?: ScanMode): Promise<ScanResult | null> {
       },
     );
 
-    const filteredResult = filterScanResult(result, getSeverityThreshold());
+    lastRawResult = result;
+    const filteredResult = filterScanResultBySeverity(result, getSeverityThreshold());
     lastResult = filteredResult;
     updateScanUi(filteredResult);
 
@@ -339,27 +373,6 @@ function getSeverityThreshold(): Issue['severity'] {
     return severityThreshold;
   }
   return 'info';
-}
-
-function filterScanResult(result: ScanResult, threshold: Issue['severity']): ScanResult {
-  const severityRank: Record<Issue['severity'], number> = {
-    error: 3,
-    warning: 2,
-    info: 1,
-  };
-  const issues = result.issues.filter(
-    (issue) => severityRank[issue.severity] >= severityRank[threshold],
-  );
-
-  return {
-    ...result,
-    issues,
-    summary: {
-      errors: issues.filter((issue) => issue.severity === 'error').length,
-      warnings: issues.filter((issue) => issue.severity === 'warning').length,
-      infos: issues.filter((issue) => issue.severity === 'info').length,
-    },
-  };
 }
 
 function updateScanUi(result: ScanResult): void {
@@ -496,6 +509,101 @@ async function suppressIssue(issue: Issue | undefined, scope: SuppressionScope):
   vscode.window.showInformationMessage('PublishGuard: Ignore rule added for future scans. Run a new scan to update the UI.');
 }
 
+async function manageDiagnostic(issue: Issue | undefined): Promise<void> {
+  if (!issue) return;
+  const file = normalizeIssueFile(issue.file);
+  const choices = [
+    {
+      label: 'Open finding',
+      description: file,
+      run: () => openIssue(issue),
+    },
+    {
+      label: 'Reveal in file explorer',
+      description: file,
+      run: () => revealIssue(issue),
+    },
+    {
+      label: 'Ignore this warning',
+      description: `Suppress this ${issue.rule} finding`,
+      run: () => suppressIssue(issue, 'exact'),
+    },
+    {
+      label: 'Ignore rule in this file',
+      description: `${issue.rule} in ${file}`,
+      run: () => suppressIssue(issue, 'rule-file'),
+    },
+    {
+      label: 'Ignore all issues in this file',
+      description: file,
+      run: () => suppressIssue(issue, 'file'),
+    },
+    {
+      label: 'Ignore rule in this folder',
+      description: issue.rule,
+      run: () => suppressIssue(issue, 'rule-folder'),
+    },
+    {
+      label: 'Exclude this file from PublishGuard scans',
+      description: file,
+      run: () => excludeIssuePath(issue, 'file'),
+    },
+    {
+      label: 'Exclude this folder from PublishGuard scans',
+      description: getFolderGlob(file),
+      run: () => excludeIssuePath(issue, 'folder'),
+    },
+    {
+      label: 'Refresh diagnostics',
+      description: 'Run PublishGuard again',
+      run: () => runScan(),
+    },
+    {
+      label: 'Set severity filter',
+      description: 'Choose which severities are shown',
+      run: () => setSeverityThreshold(),
+    },
+    {
+      label: 'Clear diagnostics',
+      description: 'Remove current PublishGuard findings from Problems',
+      run: () => clearPublishGuardDiagnostics(),
+    },
+  ];
+  const choice = await vscode.window.showQuickPick(choices, {
+    placeHolder: `Manage PublishGuard finding: ${issue.rule}`,
+  });
+  if (!choice) return;
+  await choice.run();
+}
+
+function clearPublishGuardDiagnostics(): void {
+  diagnosticCollection.clear();
+  lastResult = null;
+  lastRawResult = null;
+  treeProvider.setIdle();
+  vscode.window.showInformationMessage('PublishGuard: Diagnostics cleared.');
+}
+
+async function setSeverityThreshold(): Promise<void> {
+  const current = getSeverityThreshold();
+  const choice = await vscode.window.showQuickPick(buildSeverityQuickPickItems(current), {
+    placeHolder: 'Show PublishGuard findings at this severity or higher',
+  });
+  if (!choice) return;
+
+  await vscode.workspace
+    .getConfiguration('publishguard')
+    .update('severityThreshold', choice.severity, vscode.ConfigurationTarget.Workspace);
+
+  if (lastRawResult) {
+    const filteredResult = filterScanResultBySeverity(lastRawResult, choice.severity);
+    lastResult = filteredResult;
+    updateScanUi(filteredResult);
+  }
+
+  vscode.window.showInformationMessage(`PublishGuard: Severity filter set to ${choice.label}.`);
+}
+
 function getSuppressionPrompt(issue: Issue, scope: SuppressionScope): string {
   const file = normalizeIssueFile(issue.file);
   if (scope === 'exact') return `Reason for ignoring this ${issue.rule} finding`;
@@ -506,11 +614,37 @@ function getSuppressionPrompt(issue: Issue, scope: SuppressionScope): string {
   return `Reason for ignoring ${issue.rule} everywhere`;
 }
 
-async function addToPublishGuardIgnore(fileName: string): Promise<void> {
+async function addToPublishGuardIgnore(fileName?: string): Promise<void> {
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
   if (!workspaceFolder) return;
+  if (!fileName) {
+    fileName = await vscode.window.showInputBox({
+      prompt: 'File or folder glob to add to .publishguardrc.json ignore',
+      placeHolder: 'fixtures/**',
+      validateInput: (value) => value.trim() ? undefined : 'Enter a file path or glob.',
+    });
+  }
+  if (!fileName) return;
   const relativeFile = toWorkspaceRelativeFile(fileName);
   await addPublishGuardIgnoreGlob(relativeFile);
+}
+
+async function addExplorerPathsToPublishGuardIgnore(
+  uri: vscode.Uri | undefined,
+  selectedUris: vscode.Uri[] | undefined,
+  isFolder: boolean,
+): Promise<void> {
+  const targets = Array.isArray(selectedUris) && selectedUris.length > 0
+    ? selectedUris
+    : uri
+      ? [uri]
+      : [];
+  if (targets.length === 0) return;
+
+  const globs = targets.map((target) =>
+    normalizeExplorerIgnoreTarget(vscode.workspace.asRelativePath(target, false), isFolder),
+  );
+  await addPublishGuardIgnoreGlobs(globs);
 }
 
 async function excludeIssuePath(issue: Issue | undefined, scope: 'file' | 'folder'): Promise<void> {
@@ -520,17 +654,27 @@ async function excludeIssuePath(issue: Issue | undefined, scope: 'file' | 'folde
 }
 
 async function addPublishGuardIgnoreGlob(glob: string): Promise<void> {
+  await addPublishGuardIgnoreGlobs([glob]);
+}
+
+async function addPublishGuardIgnoreGlobs(globs: string[]): Promise<void> {
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
   if (!workspaceFolder) return;
-  const normalizedGlob = normalizeIssueFile(glob);
+  const normalizedGlobs = Array.from(new Set(globs.map(normalizeIssueFile).filter(Boolean)));
+  if (normalizedGlobs.length === 0) return;
+
   const configUri = vscode.Uri.joinPath(workspaceFolder.uri, '.publishguardrc.json');
-  const config = await readJsonObject(configUri);
+  let config = await readJsonObject(configUri);
+  for (const glob of normalizedGlobs) {
+    config = addIgnoreGlob(config, glob);
+  }
   await vscode.workspace.fs.writeFile(
     configUri,
-    Buffer.from(`${JSON.stringify(addIgnoreGlob(config, normalizedGlob), null, 2)}\n`, 'utf-8'),
+    Buffer.from(`${JSON.stringify(config, null, 2)}\n`, 'utf-8'),
   );
+  const label = normalizedGlobs.length === 1 ? normalizedGlobs[0] : `${normalizedGlobs.length} paths`;
   vscode.window.showInformationMessage(
-    `PublishGuard: Added ${normalizedGlob} to .publishguardrc.json ignore. Run a new scan to update the UI.`,
+    `PublishGuard: Added ${label} to .publishguardrc.json ignore. Run a new scan to update the UI.`,
   );
 }
 

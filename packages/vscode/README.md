@@ -13,8 +13,9 @@ Pre-publish safety scanner for npm packages and VS Code extensions. Catches secr
 - **Metadata checks**: Verifies README, LICENSE, CHANGELOG presence
 - **Dependency risk checks**: Warns about floating dependency versions and non-registry sources, confirms known vulnerabilities with npm audit, and can use Socket.dev or Snyk CLI checks for broader dependency risk context
 - **Optional local sweep**: Include gitignored workspace files in secret and size scans when you want to check local-only files before committing or publishing
-- **Quick fixes**: Use the editor lightbulb, Problems panel, or PublishGuard sidebar right-click menu to resolve or ignore findings
+- **Quick fixes**: Use the editor lightbulb, Problems panel, diagnostics management menu, or PublishGuard sidebar right-click menu to resolve or ignore findings
 - **False-positive controls**: Ignore this warning, ignore this type of warning, ignore a rule in one file or folder, ignore all findings in a file or folder, or exclude noisy files and folders from PublishGuard scans
+- **Explorer ignore actions**: Right-click a reviewed false-positive file or folder in Explorer and add it to `.publishguardrc.json` `ignore`
 - **Problems panel integration**: All issues show up in VS Code's Problems panel
 - **Settings webview**: Manage scan-on-save, scanner toggles, rule severities, ignored globs, and suppressions without editing JSON by hand
 
@@ -24,14 +25,19 @@ Pre-publish safety scanner for npm packages and VS Code extensions. Catches secr
 2. PublishGuard activates automatically
 3. Click the PublishGuard icon in the activity bar or press `Ctrl+Shift+P` → `PublishGuard: Scan Project`
 4. Review issues in the sidebar or Problems panel
-5. Use quick-fix actions or right-click an issue to resolve it, ignore reviewed false positives, or exclude noisy files and folders
+5. Use quick-fix actions, **PublishGuard: Manage Finding**, or right-click an issue to resolve it, ignore reviewed false positives, or exclude noisy files and folders
 
 ## Commands
 
 | Command | Description |
 |---|---|
 | `PublishGuard: Scan Project` | Run a full scan on the current workspace |
-| `PublishGuard: Refresh Issues` | Quickly recompute PublishGuard diagnostics and sidebar findings |
+| `PublishGuard: Refresh Issues` | Re-run PublishGuard using the configured scan mode |
+| `PublishGuard: Refresh Diagnostics` | Re-run PublishGuard and refresh Problems diagnostics |
+| `PublishGuard: Clear Diagnostics` | Clear current PublishGuard diagnostics and reset the sidebar |
+| `PublishGuard: Set Severity Filter` | Choose whether Problems and sidebar findings show errors only, warnings and errors, or all findings |
+| `PublishGuard: Manage Finding` | Open actions for the active PublishGuard diagnostic, including open, reveal, ignore, exclude, refresh, severity, and clear |
+| `PublishGuard: Add Path to Ignore List` | Add a path or glob to `.publishguardrc.json` `ignore` |
 | `PublishGuard: Quick Scan` | Run a fast scan for save-time feedback |
 | `PublishGuard: Deep Scan` | Run a broader local/source scan before release |
 | `PublishGuard: Auto-Fix Issues` | Automatically fix common issues |
@@ -74,7 +80,7 @@ Project-level ignore globs and reviewed false positives are stored in `.publishg
 }
 ```
 
-Right-click findings in the PublishGuard sidebar, use the editor lightbulb, or use quick-fix actions in VS Code Problems to add reviewed suppressions without editing JSON. Suppressions can target an exact finding, one rule in a file, all issues in a file, one rule in a folder, all issues in a folder, or one rule project-wide. Exclusion actions add file or folder globs to `.publishguardrc.json` `ignore`, not `.npmignore`, so they only quiet PublishGuard findings and do not change what your package publishes. Ignore-rule changes are applied to future scans; run a new scan when you want the sidebar and Problems panel to update.
+Right-click findings in the PublishGuard sidebar, use the editor lightbulb, use quick-fix actions in VS Code Problems, or run **PublishGuard: Manage Finding** to add reviewed suppressions without editing JSON. Suppressions can target an exact finding, one rule in a file, all issues in a file, one rule in a folder, all issues in a folder, or one rule project-wide. Exclusion actions add file or folder globs to `.publishguardrc.json` `ignore`, not `.npmignore`, so they only quiet PublishGuard findings and do not change what your package publishes. You can also right-click a file or folder in Explorer and choose the PublishGuard ignore action for reviewed false positives. Ignore-rule changes are applied to future scans; run a new scan when you want the sidebar and Problems panel to update.
 
 The settings page writes rule toggles, ignored globs, suppressions, dependency-audit settings, Socket.dev settings, Snyk settings, and docs/example policy into `.publishguardrc.json`. Use **Save and Scan** to persist the page and immediately rerun PublishGuard, or use **Save Settings** and run a scan later when you want refreshed results.
 

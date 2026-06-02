@@ -2,7 +2,7 @@
   "name": "publishguard",
   "displayName": "PublishGuard",
   "description": "Pre-publish safety scanner for npm packages and VS Code extensions — catches secrets, sensitive files, and metadata issues before you publish.",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "publisher": "VladNoskov",
   "icon": "resources/icon.png",
   "engines": {
@@ -34,6 +34,22 @@
       {
         "command": "publishguard.refreshIssues",
         "title": "PublishGuard: Refresh Issues"
+      },
+      {
+        "command": "publishguard.refreshDiagnostics",
+        "title": "PublishGuard: Refresh Diagnostics"
+      },
+      {
+        "command": "publishguard.clearDiagnostics",
+        "title": "PublishGuard: Clear Diagnostics"
+      },
+      {
+        "command": "publishguard.setSeverityThreshold",
+        "title": "PublishGuard: Set Severity Filter"
+      },
+      {
+        "command": "publishguard.manageDiagnostic",
+        "title": "PublishGuard: Manage Finding"
       },
       {
         "command": "publishguard.fix",
@@ -86,6 +102,18 @@
       {
         "command": "publishguard.suppressRuleEverywhere",
         "title": "PublishGuard: Ignore This Type of Warning"
+      },
+      {
+        "command": "publishguard.addToPublishGuardIgnore",
+        "title": "PublishGuard: Add Path to Ignore List"
+      },
+      {
+        "command": "publishguard.ignoreExplorerFile",
+        "title": "PublishGuard: Ignore This File"
+      },
+      {
+        "command": "publishguard.ignoreExplorerFolder",
+        "title": "PublishGuard: Ignore This Folder"
       },
       {
         "command": "publishguard.excludeIssueFile",
@@ -234,6 +262,16 @@
         "command": "publishguard.openSettings",
         "when": "view == publishguard.issues",
         "group": "navigation@5"
+      },
+      {
+        "command": "publishguard.setSeverityThreshold",
+        "when": "view == publishguard.issues",
+        "group": "navigation@6"
+      },
+      {
+        "command": "publishguard.clearDiagnostics",
+        "when": "view == publishguard.issues",
+        "group": "navigation@7"
       }
       ],
       "view/item/context": [
@@ -293,9 +331,26 @@
         "group": "inline@1"
       },
       {
+        "command": "publishguard.manageDiagnostic",
+        "when": "view == publishguard.issues && viewItem == issue",
+        "group": "inline@2"
+      },
+      {
         "command": "publishguard.deleteIssueFile",
         "when": "view == publishguard.issues && viewItem == issue",
         "group": "2_modification@1"
+      }
+      ],
+      "explorer/context": [
+      {
+        "command": "publishguard.ignoreExplorerFile",
+        "when": "resourceScheme == file && !explorerResourceIsFolder",
+        "group": "publishguard@1"
+      },
+      {
+        "command": "publishguard.ignoreExplorerFolder",
+        "when": "resourceScheme == file && explorerResourceIsFolder",
+        "group": "publishguard@1"
       }
       ],
       "editor/context": [
@@ -333,7 +388,7 @@
     "package": "vsce package --no-dependencies"
   },
   "dependencies": {
-    "@publishguard/core": "0.4.1"
+    "@publishguard/core": "0.5.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

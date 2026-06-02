@@ -16,15 +16,21 @@ Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/) (p
 1. Open any workspace with a `package.json` — PublishGuard activates automatically
 2. Click the shield icon in the activity bar, or press `Ctrl+Shift+P` → **PublishGuard: Scan Project**
 3. Issues appear in the sidebar and Problems panel with quick-fix suggestions
-4. Use the editor lightbulb, Problems quick fixes, or PublishGuard sidebar right-click menu to ignore a warning, ignore that warning type, or exclude a noisy file/folder in `.publishguardrc.json`
-5. Open **PublishGuard: Open Settings** to manage scan behavior, ignored globs, and reviewed false positives
+4. Use the editor lightbulb, Problems quick fixes, diagnostics management menu, or PublishGuard sidebar right-click menu to ignore a warning, ignore that warning type, or exclude a noisy file/folder in `.publishguardrc.json`
+5. Right-click files or folders in Explorer to add reviewed false positives to the PublishGuard ignore list without changing publish artifacts
+6. Open **PublishGuard: Open Settings** to manage scan behavior, ignored globs, and reviewed false positives
 
 ### Commands
 
 | Command | Description |
 |---|---|
 | `PublishGuard: Scan Project` | Full safety scan of current workspace |
-| `PublishGuard: Refresh Issues` | Quickly recompute PublishGuard diagnostics and sidebar findings |
+| `PublishGuard: Refresh Issues` | Re-run PublishGuard using the configured scan mode |
+| `PublishGuard: Refresh Diagnostics` | Re-run PublishGuard and refresh Problems diagnostics |
+| `PublishGuard: Clear Diagnostics` | Clear current PublishGuard diagnostics and reset the sidebar |
+| `PublishGuard: Set Severity Filter` | Choose whether Problems and sidebar findings show errors only, warnings and errors, or all findings |
+| `PublishGuard: Manage Finding` | Open actions for the active PublishGuard diagnostic, including open, reveal, ignore, exclude, refresh, severity, and clear |
+| `PublishGuard: Add Path to Ignore List` | Add a path or glob to `.publishguardrc.json` `ignore` |
 | `PublishGuard: Quick Scan` | Fast manifest and publish-surface scan that skips source-derived capability analysis |
 | `PublishGuard: Deep Scan` | Broader local scan that includes gitignored files, unpublished examples, and deeper source capability analysis |
 | `PublishGuard: Auto-Fix Issues` | Automatically add missing ignore rules |
