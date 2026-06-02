@@ -34,7 +34,7 @@ export function generateSarifReport(result: ScanResult): string {
         tool: {
           driver: {
             name: 'PublishGuard',
-            version: '0.3.1',
+            version: '0.4.0',
             rules: Array.from(rules.values()),
           },
         },

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0
+
+- Added quick, full, and deep scan modes.
+- Added VS Code capability checks and source-backed advice for provider refresh/restart commands, webview CSP, and web-extension compatibility.
+- Added `PublishGuard: Refresh Issues`.
+- Connected native settings and the settings webview for scan mode and docs/example scan settings.
+- Updated package metadata for 0.4.0.
+
 ## 0.3.1
 
 - Added optional Snyk CLI dependency vulnerability confirmation in VS Code scans and settings.

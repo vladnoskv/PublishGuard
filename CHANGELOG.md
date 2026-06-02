@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0 (2026-06-02)
+
+### Added
+
+- Added VS Code capability checks for diagnostic, language-server, SCM, formatter, testing, debugger, view, webview, auth, task, notebook, terminal, and web-extension behavior.
+- Added quick, full, and deep scan modes for CLI and VS Code scans.
+- Added PublishGuard refresh and deep-scan command coverage for the VS Code extension.
+
+### Changed
+
+- Updated package, CLI, VS Code extension, and SARIF reporter metadata for 0.4.0.
+
 ## 0.3.1 (2026-06-01)
 
 ### Added
