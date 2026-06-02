@@ -74,9 +74,9 @@ Project-level ignore globs and reviewed false positives are stored in `.publishg
 }
 ```
 
-Right-click findings in the PublishGuard sidebar, use the editor lightbulb, or use quick-fix actions in VS Code Problems to add reviewed suppressions without editing JSON. Suppressions can target an exact finding, one rule in a file, all issues in a file, one rule in a folder, all issues in a folder, or one rule project-wide. Exclusion actions add file or folder globs to `.publishguardrc.json` `ignore`, not `.npmignore`, so they only quiet PublishGuard findings and do not change what your package publishes.
+Right-click findings in the PublishGuard sidebar, use the editor lightbulb, or use quick-fix actions in VS Code Problems to add reviewed suppressions without editing JSON. Suppressions can target an exact finding, one rule in a file, all issues in a file, one rule in a folder, all issues in a folder, or one rule project-wide. Exclusion actions add file or folder globs to `.publishguardrc.json` `ignore`, not `.npmignore`, so they only quiet PublishGuard findings and do not change what your package publishes. Ignore-rule changes are applied to future scans; run a new scan when you want the sidebar and Problems panel to update.
 
-The settings page writes rule toggles, ignored globs, suppressions, dependency-audit settings, Socket.dev settings, Snyk settings, and docs/example policy into `.publishguardrc.json`. Use **Save and Scan** to persist the page and immediately rerun PublishGuard.
+The settings page writes rule toggles, ignored globs, suppressions, dependency-audit settings, Socket.dev settings, Snyk settings, and docs/example policy into `.publishguardrc.json`. Use **Save and Scan** to persist the page and immediately rerun PublishGuard, or use **Save Settings** and run a scan later when you want refreshed results.
 
 Snyk confirmation is opt-in and requires the Snyk CLI to be installed and authenticated. If Snyk cannot run, PublishGuard reports a warning instead of failing the whole scan.
 

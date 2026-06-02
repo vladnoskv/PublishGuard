@@ -2,7 +2,7 @@
   "name": "publishguard",
   "displayName": "PublishGuard",
   "description": "Pre-publish safety scanner for npm packages and VS Code extensions — catches secrets, sensitive files, and metadata issues before you publish.",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "publisher": "VladNoskov",
   "icon": "resources/icon.png",
   "engines": {
@@ -333,7 +333,7 @@
     "package": "vsce package --no-dependencies"
   },
   "dependencies": {
-    "@publishguard/core": "0.4.0"
+    "@publishguard/core": "0.4.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

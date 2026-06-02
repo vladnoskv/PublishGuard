@@ -134,7 +134,7 @@ Create a `.publishguardrc.json` in your project root:
 }
 ```
 
-Use `ignore` for file globs you never want PublishGuard to scan or report. Use `suppressions` for reviewed false positives; each suppression must include a reason and can match by `rule`, `file`, and/or `fingerprint`.
+Use `ignore` for file globs you never want PublishGuard to scan or report. Use `suppressions` for reviewed false positives; each suppression must include a reason and can match by `rule`, `file`, and/or `fingerprint`. Ignore-rule changes are applied to future scans; run a new scan when you want the sidebar and Problems panel to reflect them.
 
 ### Scan Modes
 

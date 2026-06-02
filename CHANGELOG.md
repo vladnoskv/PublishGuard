@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.1 (2026-06-02)
+
+### Changed
+
+- Suppression and project ignore-rule actions now save the rule without automatically rescanning, and prompt users to run a new scan when they want the UI refreshed.
+- Scan-on-save now only runs after saving `package.json`, matching the setting description.
+- Updated package, CLI, VS Code extension, and SARIF reporter metadata for 0.4.1.
+
+### Fixed
+
+- Declared VS Code extension runtime ambient types explicitly so editor TypeScript diagnostics can resolve Node globals and the VS Code API.
+
 ## 0.4.0 (2026-06-02)
 
 ### Added

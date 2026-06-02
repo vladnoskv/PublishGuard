@@ -95,7 +95,7 @@ export function buildSettingsWebviewHtml(state: SettingsWebviewState): string {
         <p>Control when PublishGuard runs and which confirmation scanners are used.</p>
         <div class="row">
           <input id="scanOnSave" name="scanOnSave" type="checkbox"${state.scanOnSave ? ' checked' : ''}>
-          <label for="scanOnSave">Scan when package or ignore files are saved</label>
+          <label for="scanOnSave">Scan when package.json is saved</label>
         </div>
         <div class="row">
           <input id="blockPublishOnError" name="blockPublishOnError" type="checkbox"${state.blockPublishOnError ? ' checked' : ''}>

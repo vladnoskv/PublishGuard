@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.1
+
+- Suppression and project ignore-rule actions now save the rule without automatically rescanning.
+- Added user guidance to run a new scan when ignore-rule changes should refresh the current UI.
+- Scan-on-save now only runs after saving `package.json`.
+- Fixed editor TypeScript diagnostics by declaring VS Code extension runtime ambient types explicitly.
+- Updated package metadata for 0.4.1.
+
 ## 0.4.0
 
 - Added quick, full, and deep scan modes.

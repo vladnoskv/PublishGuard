@@ -241,11 +241,7 @@ export function activate(context: vscode.ExtensionContext) {
       const config = vscode.workspace.getConfiguration('publishguard');
       if (!config.get<boolean>('scanOnSave', true)) return;
       if (
-        doc.fileName.endsWith('package.json') ||
-        doc.fileName.endsWith('.publishguardrc.json') ||
-        doc.fileName.endsWith('.npmignore') ||
-        doc.fileName.endsWith('.vscodeignore') ||
-        doc.fileName.endsWith('.gitignore')
+        doc.fileName.endsWith('package.json')
       ) {
         await runScan('quick');
       }
@@ -497,8 +493,7 @@ async function suppressIssue(issue: Issue | undefined, scope: SuppressionScope):
   config.suppressions = suppressions;
 
   await vscode.workspace.fs.writeFile(configUri, Buffer.from(`${JSON.stringify(config, null, 2)}\n`, 'utf-8'));
-  vscode.window.showInformationMessage('PublishGuard: Ignore rule added for future scans.');
-  await runScan();
+  vscode.window.showInformationMessage('PublishGuard: Ignore rule added for future scans. Run a new scan to update the UI.');
 }
 
 function getSuppressionPrompt(issue: Issue, scope: SuppressionScope): string {
@@ -534,8 +529,9 @@ async function addPublishGuardIgnoreGlob(glob: string): Promise<void> {
     configUri,
     Buffer.from(`${JSON.stringify(addIgnoreGlob(config, normalizedGlob), null, 2)}\n`, 'utf-8'),
   );
-  vscode.window.showInformationMessage(`PublishGuard: Added ${normalizedGlob} to .publishguardrc.json ignore.`);
-  await runScan();
+  vscode.window.showInformationMessage(
+    `PublishGuard: Added ${normalizedGlob} to .publishguardrc.json ignore. Run a new scan to update the UI.`,
+  );
 }
 
 function toWorkspaceRelativeFile(fileName: string): string {
@@ -668,7 +664,11 @@ async function openSettingsWebview(context: vscode.ExtensionContext): Promise<vo
 
     try {
       await saveSettingsMessage(workspaceFolder.uri, settingsMessage);
-      vscode.window.showInformationMessage('PublishGuard: Settings saved.');
+      vscode.window.showInformationMessage(
+        settingsMessage.command === 'runScan'
+          ? 'PublishGuard: Settings saved.'
+          : 'PublishGuard: Settings saved. Run a new scan to update the UI.',
+      );
       await render();
       if (settingsMessage.command === 'runScan') {
         await runScan();

@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, it, expect } from 'vitest';
 import packageJson from '../package.json';
 
@@ -68,4 +70,33 @@ describe('VS Code Extension', () => {
     expect(properties['publishguard.scanMode'].enum).toEqual(['quick', 'full', 'deep']);
     expect(properties['publishguard.dummySecretSeverity'].enum).toEqual(['off', 'info', 'warning', 'error']);
   });
+
+  it('declares editor-visible ambient types for the VS Code extension runtime', () => {
+    const tsconfig = JSON.parse(
+      fs.readFileSync(path.join(__dirname, '..', 'tsconfig.json'), 'utf-8'),
+    );
+
+    expect(tsconfig.compilerOptions?.types).toEqual(expect.arrayContaining(['node', 'vscode']));
+  });
+
+  it('does not rescan automatically after ignore rule updates', () => {
+    const extensionSource = fs.readFileSync(
+      path.join(__dirname, '..', 'src', 'extension.ts'),
+      'utf-8',
+    );
+
+    expect(extensionSource).toContain('Run a new scan to update the UI.');
+    expect(functionBody(extensionSource, 'suppressIssue')).not.toContain('await runScan();');
+    expect(functionBody(extensionSource, 'addPublishGuardIgnoreGlob')).not.toContain('await runScan();');
+  });
 });
+
+function functionBody(source: string, name: string): string {
+  const start = source.indexOf(`async function ${name}`);
+  expect(start).toBeGreaterThanOrEqual(0);
+  const nextFunction = source.indexOf('\nfunction ', start + 1);
+  const nextAsyncFunction = source.indexOf('\nasync function ', start + 1);
+  const candidates = [nextFunction, nextAsyncFunction].filter((index) => index > start);
+  const end = Math.min(...candidates);
+  return source.slice(start, end);
+}
