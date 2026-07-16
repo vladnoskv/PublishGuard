@@ -6,6 +6,7 @@ describe('settings webview', () => {
     const html = buildSettingsWebviewHtml({
       nonce: 'test-nonce',
       scanOnSave: true,
+      rescanAfterIgnore: true,
       blockPublishOnError: true,
       includeGitIgnored: true,
       dependencyAudit: false,
@@ -29,6 +30,7 @@ describe('settings webview', () => {
 
     expect(html).toContain('href="#scan-settings"');
     expect(html).toContain('name="includeGitIgnored" type="checkbox" checked');
+    expect(html).toContain('name="rescanAfterIgnore" type="checkbox" checked');
     expect(html).toContain('name="scanMode"');
     expect(html).toContain('<option value="deep" selected>deep</option>');
     expect(html).toContain('name="snyk" type="checkbox" checked');

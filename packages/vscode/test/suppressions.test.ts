@@ -57,27 +57,27 @@ describe('suppression helpers', () => {
   it('describes Problems quick-fix suppression actions by file, folder, and rule scope', () => {
     expect(buildProblemSuppressionActions('aws-access-key', 'src/config/secrets.ts')).toEqual([
       {
-        title: 'PublishGuard: Ignore this warning',
+        title: 'PublishGuard: Ignore this problem',
         scope: 'exact',
       },
       {
-        title: 'PublishGuard: Ignore aws-access-key in this file',
+        title: 'PublishGuard: Ignore aws-access-key problems in this file',
         scope: 'rule-file',
       },
       {
-        title: 'PublishGuard: Ignore all PublishGuard issues in this file',
+        title: 'PublishGuard: Ignore all PublishGuard problems in this file',
         scope: 'file',
       },
       {
-        title: 'PublishGuard: Ignore aws-access-key in this folder',
+        title: 'PublishGuard: Ignore aws-access-key problems in this folder',
         scope: 'rule-folder',
       },
       {
-        title: 'PublishGuard: Ignore all PublishGuard issues in this folder',
+        title: 'PublishGuard: Ignore all PublishGuard problems in this folder',
         scope: 'folder',
       },
       {
-        title: 'PublishGuard: Ignore this type of warning',
+        title: 'PublishGuard: Ignore this type of problem',
         scope: 'rule',
       },
     ]);

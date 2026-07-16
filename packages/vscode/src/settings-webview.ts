@@ -5,6 +5,7 @@ export type RuleSettingValue = PublishGuardConfig['rules'][string];
 export interface SettingsWebviewState {
   nonce: string;
   scanOnSave: boolean;
+  rescanAfterIgnore: boolean;
   blockPublishOnError: boolean;
   includeGitIgnored: boolean;
   dependencyAudit: boolean;
@@ -97,6 +98,11 @@ export function buildSettingsWebviewHtml(state: SettingsWebviewState): string {
           <input id="scanOnSave" name="scanOnSave" type="checkbox"${state.scanOnSave ? ' checked' : ''}>
           <label for="scanOnSave">Scan when package.json is saved</label>
         </div>
+        <div class="row">
+          <input id="rescanAfterIgnore" name="rescanAfterIgnore" type="checkbox"${state.rescanAfterIgnore ? ' checked' : ''}>
+          <label for="rescanAfterIgnore">Rescan automatically after ignoring a problem</label>
+        </div>
+        <p class="hint">Turn this off to batch several ignore changes and apply them on your next scan. Current findings may be stale until then.</p>
         <div class="row">
           <input id="blockPublishOnError" name="blockPublishOnError" type="checkbox"${state.blockPublishOnError ? ' checked' : ''}>
           <label for="blockPublishOnError">Treat error findings as publish blockers</label>
@@ -244,6 +250,7 @@ export function buildSettingsWebviewHtml(state: SettingsWebviewState): string {
         vscode.postMessage({
           command: button.dataset.command,
           scanOnSave: field('scanOnSave').checked,
+          rescanAfterIgnore: field('rescanAfterIgnore').checked,
           blockPublishOnError: field('blockPublishOnError').checked,
           includeGitIgnored: field('includeGitIgnored').checked,
           dependencyAudit: field('dependencyAudit').checked,

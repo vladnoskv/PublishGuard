@@ -6,6 +6,7 @@ describe('settings state', () => {
     const message = normalizeSettingsMessage({
       command: 'runScan',
       scanOnSave: true,
+      rescanAfterIgnore: true,
       blockPublishOnError: false,
       includeGitIgnored: true,
       dependencyAudit: true,
@@ -34,6 +35,7 @@ describe('settings state', () => {
     expect(message).toEqual({
       command: 'runScan',
       scanOnSave: true,
+      rescanAfterIgnore: true,
       blockPublishOnError: false,
       includeGitIgnored: true,
       dependencyAudit: true,
@@ -62,6 +64,7 @@ describe('settings state', () => {
     const message = normalizeSettingsMessage({
       command: 'saveSettings',
       scanOnSave: false,
+      rescanAfterIgnore: false,
       blockPublishOnError: true,
       includeGitIgnored: true,
       dependencyAudit: true,

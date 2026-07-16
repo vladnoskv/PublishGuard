@@ -3,6 +3,7 @@ import type { ExampleFilesConfig, Issue, PublishGuardConfig, ScanMode } from '@p
 export interface SettingsMessage {
   command: 'saveSettings' | 'runScan';
   scanOnSave: boolean;
+  rescanAfterIgnore: boolean;
   blockPublishOnError: boolean;
   includeGitIgnored: boolean;
   dependencyAudit: boolean;
@@ -24,6 +25,7 @@ export function normalizeSettingsMessage(value: unknown): SettingsMessage | unde
   return {
     command: candidate.command,
     scanOnSave: candidate.scanOnSave === true,
+    rescanAfterIgnore: candidate.rescanAfterIgnore !== false,
     blockPublishOnError: candidate.blockPublishOnError === true,
     includeGitIgnored: candidate.includeGitIgnored === true,
     dependencyAudit: candidate.dependencyAudit === true,

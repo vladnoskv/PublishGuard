@@ -506,7 +506,7 @@ async function suppressIssue(issue: Issue | undefined, scope: SuppressionScope):
   config.suppressions = suppressions;
 
   await vscode.workspace.fs.writeFile(configUri, Buffer.from(`${JSON.stringify(config, null, 2)}\n`, 'utf-8'));
-  vscode.window.showInformationMessage('PublishGuard: Ignore rule added for future scans. Run a new scan to update the UI.');
+  await finishIgnoreChange('Ignore rule added');
 }
 
 async function manageDiagnostic(issue: Issue | undefined): Promise<void> {
@@ -524,8 +524,8 @@ async function manageDiagnostic(issue: Issue | undefined): Promise<void> {
       run: () => revealIssue(issue),
     },
     {
-      label: 'Ignore this warning',
-      description: `Suppress this ${issue.rule} finding`,
+    label: 'Ignore this problem',
+      description: `Suppress this ${issue.rule} problem`,
       run: () => suppressIssue(issue, 'exact'),
     },
     {
@@ -673,8 +673,19 @@ async function addPublishGuardIgnoreGlobs(globs: string[]): Promise<void> {
     Buffer.from(`${JSON.stringify(config, null, 2)}\n`, 'utf-8'),
   );
   const label = normalizedGlobs.length === 1 ? normalizedGlobs[0] : `${normalizedGlobs.length} paths`;
+  await finishIgnoreChange(`Added ${label} to .publishguardrc.json ignore`);
+}
+
+async function finishIgnoreChange(message: string): Promise<void> {
+  const rescan = vscode.workspace.getConfiguration('publishguard').get<boolean>('rescanAfterIgnore', true);
+  if (rescan) {
+    vscode.window.showInformationMessage(`PublishGuard: ${message}. Rescanning...`);
+    await runScan();
+    return;
+  }
+
   vscode.window.showInformationMessage(
-    `PublishGuard: Added ${label} to .publishguardrc.json ignore. Run a new scan to update the UI.`,
+    `PublishGuard: ${message}. Run a new scan to update the UI (automatic rescan is off).`,
   );
 }
 
@@ -780,6 +791,7 @@ async function openSettingsWebview(context: vscode.ExtensionContext): Promise<vo
     panel.webview.html = buildSettingsWebviewHtml({
       nonce: createNonce(),
       scanOnSave: config.get<boolean>('scanOnSave', true),
+      rescanAfterIgnore: config.get<boolean>('rescanAfterIgnore', true),
       blockPublishOnError: config.get<boolean>('blockPublishOnError', true),
       dependencyAudit: await getDependencyAuditEnabled(workspaceFolder.uri),
       includeGitIgnored: await getIncludeGitIgnoredEnabled(workspaceFolder.uri),
@@ -828,6 +840,7 @@ async function openSettingsWebview(context: vscode.ExtensionContext): Promise<vo
 async function saveSettingsMessage(workspaceUri: vscode.Uri, message: SettingsMessage): Promise<void> {
   const workspaceConfig = vscode.workspace.getConfiguration('publishguard');
   await workspaceConfig.update('scanOnSave', message.scanOnSave, vscode.ConfigurationTarget.Workspace);
+  await workspaceConfig.update('rescanAfterIgnore', message.rescanAfterIgnore, vscode.ConfigurationTarget.Workspace);
   await workspaceConfig.update('blockPublishOnError', message.blockPublishOnError, vscode.ConfigurationTarget.Workspace);
   await updateWorkspaceSetting(workspaceConfig, 'includeGitIgnored', message.includeGitIgnored, { allowUnregistered: true });
   await workspaceConfig.update('severityThreshold', message.severityThreshold, vscode.ConfigurationTarget.Workspace);

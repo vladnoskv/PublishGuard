@@ -53,7 +53,8 @@ describe('VS Code Extension', () => {
   it('keeps native settings aligned with settings webview-managed fields', () => {
     const properties = packageJson.contributes.configuration.properties;
     const requiredSettings = [
-      'publishguard.scanOnSave',
+        'publishguard.scanOnSave',
+      'publishguard.rescanAfterIgnore',
       'publishguard.blockPublishOnError',
       'publishguard.scanMode',
       'publishguard.includeGitIgnored',
@@ -79,15 +80,15 @@ describe('VS Code Extension', () => {
     expect(tsconfig.compilerOptions?.types).toEqual(expect.arrayContaining(['node', 'vscode']));
   });
 
-  it('does not rescan automatically after ignore rule updates', () => {
+  it('supports configurable rescans after ignore rule updates', () => {
     const extensionSource = fs.readFileSync(
       path.join(__dirname, '..', 'src', 'extension.ts'),
       'utf-8',
     );
 
-    expect(extensionSource).toContain('Run a new scan to update the UI.');
-    expect(functionBody(extensionSource, 'suppressIssue')).not.toContain('await runScan();');
-    expect(functionBody(extensionSource, 'addPublishGuardIgnoreGlob')).not.toContain('await runScan();');
+    expect(extensionSource).toContain('rescanAfterIgnore');
+    expect(extensionSource).toContain('automatic rescan is off');
+    expect(extensionSource).toContain('await runScan();');
   });
 });
 

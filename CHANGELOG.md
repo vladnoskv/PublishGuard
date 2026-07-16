@@ -1,91 +1,53 @@
 # Changelog
 
-## 0.5.0 (2026-06-03)
+User-facing release notes for PublishGuard. Versions are listed newest first.
 
-### Added
+## 0.6.0 - July 16, 2026
 
-- Added VS Code commands to refresh diagnostics, clear diagnostics, and change the PublishGuard severity filter from the command palette and sidebar.
-- Added **PublishGuard: Manage Finding** so the active diagnostic can be opened, revealed, ignored, excluded, refreshed, filtered, or cleared from one menu.
-- Added Explorer right-click actions for adding reviewed false-positive files and folders to `.publishguardrc.json` `ignore`.
+- Added clearer right-click and quick-fix actions for ignoring one problem, a problem type, a file, or a folder.
+- Added automatic rescanning after an ignore change, with a setting to turn it off when batching changes.
+- Improved the sidebar scan summary with the active scan mode and number of findings shown.
+- Refreshed the VS Code settings page, README, and release notes around everyday publishing workflows.
+- Added high-signal detection for GitLab, Slack, Stripe, Google, SendGrid, OpenAI, and DigitalOcean credentials.
+- Added checks for npm/Python registry credentials, Terraform state/variables, Kubernetes config, and Docker registry auth files.
 
-### Changed
+## 0.5.0 - June 3, 2026
 
-- Severity filter changes now re-filter the last raw scan result instead of requiring a new scan to restore hidden lower-severity findings.
-- Updated package, CLI, VS Code extension, and lockfile metadata for 0.5.0.
+- Added **Refresh Diagnostics**, **Clear Diagnostics**, and **Set Severity Filter** commands.
+- Added **Manage Finding**, a single place to open, reveal, ignore, exclude, refresh, filter, or clear a diagnostic.
+- Added Explorer actions for adding reviewed files and folders to the PublishGuard ignore list.
+- Severity filters now update the current results immediately.
 
-## 0.4.1 (2026-06-02)
+## 0.4.1 - June 2, 2026
 
-### Changed
+- Improved scan-on-save so it runs only when `package.json` is saved.
+- Added clearer guidance after ignore rules are changed.
+- Fixed VS Code runtime type declarations used by the extension.
 
-- Suppression and project ignore-rule actions now save the rule without automatically rescanning, and prompt users to run a new scan when they want the UI refreshed.
-- Scan-on-save now only runs after saving `package.json`, matching the setting description.
-- Updated package, CLI, VS Code extension, and SARIF reporter metadata for 0.4.1.
+## 0.4.0 - June 2, 2026
 
-### Fixed
+- Added quick, full, and deep scan modes.
+- Added broader VS Code extension checks for recovery commands, lifecycle support, webview security, and browser compatibility.
+- Added Refresh Issues and Deep Scan commands.
 
-- Declared VS Code extension runtime ambient types explicitly so editor TypeScript diagnostics can resolve Node globals and the VS Code API.
+## 0.3.1 - June 1, 2026
 
-## 0.4.0 (2026-06-02)
+- Added optional Snyk confirmation for dependency vulnerabilities.
+- Scanner-tool failures now appear as warnings instead of stopping the complete scan.
 
-### Added
+## 0.3.0 - June 1, 2026
 
-- Added VS Code capability checks for diagnostic, language-server, SCM, formatter, testing, debugger, view, webview, auth, task, notebook, terminal, and web-extension behavior.
-- Added quick, full, and deep scan modes for CLI and VS Code scans.
-- Added PublishGuard refresh and deep-scan command coverage for the VS Code extension.
+- Added Problems-panel and editor quick fixes for reviewed findings.
+- Added sidebar right-click actions for suppressing findings and excluding files/folders.
+- Added the settings webview for scanner switches, rule severities, ignored paths, and reviewed findings.
+- Fixed sidebar context-menu registration and invalid settings feedback.
 
-### Changed
+## 0.2.0 - June 1, 2026
 
-- Updated package, CLI, VS Code extension, and SARIF reporter metadata for 0.4.0.
+- Added an opt-in broader local sweep for gitignored files.
+- Added matching VS Code settings and webview controls.
+- Added exact, file, folder, and rule-level ignore actions.
 
-## 0.3.1 (2026-06-01)
+## 0.1.0 - May 31, 2026
 
-### Added
-
-- Added optional Snyk CLI dependency vulnerability confirmation through `publishguard scan --snyk`, `.publishguardrc.json` `snyk.enabled`, and the VS Code settings webview.
-- Snyk scanner failures now report a warning instead of failing the whole scan, matching npm audit and Socket.dev behavior.
-
-### Changed
-
-- Updated package, CLI, VS Code extension, and SARIF reporter metadata for 0.3.1.
-
-## 0.3.0 (2026-06-01)
-
-### Added
-
-- VS Code editor lightbulb and Problems quick fixes now include "Ignore this warning" and "Ignore this type of warning" actions.
-- PublishGuard sidebar right-click menus now expose warning suppression and file/folder exclusion actions.
-- File and folder exclusions can be added to `.publishguardrc.json` from the editor, Problems panel, or PublishGuard sidebar without modifying `.npmignore`.
-- The settings webview now saves rule toggles through a tested payload normalizer and gives immediate feedback for Save and Save and Scan.
-
-### Fixed
-
-- VS Code menu contributions are now registered under `contributes.menus`, so the PublishGuard sidebar context menu appears correctly.
-- Save and Scan now reports malformed settings payloads instead of silently doing nothing.
-
-## 0.2.0 (2026-06-01)
-
-### Added
-
-- `--include-gitignored` now performs a broader local secret and size sweep over gitignored workspace files while leaving publish file resolution unchanged.
-- VS Code setting `publishguard.includeGitIgnored` exposes the same local sweep mode in the extension and settings webview.
-
-### Changed
-
-- Turbo test tasks no longer declare coverage output when coverage is not generated, which removes misleading validation warnings.
-
-## 0.1.0 (2026-05-31)
-
-### Added
-
-- Initial MVP release
-- Core scanning engine with secret detection (10+ patterns)
-- Sensitive file detection (30+ patterns)
-- Ignore file validation (.npmignore, .vscodeignore, .gitignore)
-- Manifest validation (package.json completeness)
-- Metadata checks (README, LICENSE, CHANGELOG)
-- File size warnings (5MB warn, 50MB error)
-- CLI with scan, init, and fix commands
-- VS Code extension with sidebar, diagnostics, and quick-fixes
-- JSON, pretty, and CI output formatters
-- Safe ignore rule generation
-- GitHub Actions CI integration
+- Initial release with secret, sensitive-file, metadata, manifest, ignore-file, file-size, dependency, CLI, CI, sidebar, and Problems-panel checks.

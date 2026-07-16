@@ -88,4 +88,42 @@ describe('secret issue locations', () => {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it('detects modern provider token formats and secret-bearing config files', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'publishguard-modern-secrets-'));
+    const source = path.join(dir, 'config.ts');
+    const npmrc = path.join(dir, '.npmrc');
+
+    try {
+      fs.writeFileSync(source, [
+        'const gitlab = "glpat-1234567890abcdefghijkl";',
+        'const slack = "xoxb-1234567890-abcdefghij";',
+        'const stripe = "sk_live_1234567890abcdefghijkl";',
+        'const google = "AIza12345678901234567890123456789012345";',
+        'const sendgrid = "SG.1234567890abcdef.1234567890abcdef";',
+        'const openai = "sk-proj-1234567890abcdefghijkl";',
+        'const digitalocean = "dop_v1_0123456789abcdef0123456789abcdef";',
+      ].join('\n'));
+      fs.writeFileSync(npmrc, '//registry.npmjs.org/:_authToken=${NPM_TOKEN}\n');
+
+      const issues = await scanSecrets({
+        files: ['config.ts', '.npmrc'],
+        rootDir: dir,
+      });
+      const rules = new Set(issues.map((issue) => issue.rule));
+
+      expect(rules).toEqual(new Set([
+        'gitlab-token',
+        'slack-token',
+        'stripe-secret-key',
+        'google-api-key',
+        'sendgrid-api-key',
+        'openai-api-key',
+        'digitalocean-token',
+        'credentials-file',
+      ]));
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

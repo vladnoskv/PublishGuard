@@ -116,6 +116,11 @@ export class PublishGuardTreeProvider implements vscode.TreeDataProvider<IssueTr
       ),
     );
 
+    items.push(new IssueTreeItem(
+      `Last scan: ${result.scanMode} · ${result.issues.length} shown`,
+      vscode.TreeItemCollapsibleState.None,
+    ));
+
     items.push(
       new IssueTreeItem(
         `Files to publish: ${result.publishedFiles.length}`,

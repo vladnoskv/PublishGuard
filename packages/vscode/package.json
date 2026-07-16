@@ -2,7 +2,7 @@
   "name": "publishguard",
   "displayName": "PublishGuard",
   "description": "Pre-publish safety scanner for npm packages and VS Code extensions — catches secrets, sensitive files, and metadata issues before you publish.",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "publisher": "VladNoskov",
   "icon": "resources/icon.png",
   "engines": {
@@ -81,7 +81,7 @@
       },
       {
         "command": "publishguard.suppressIssue",
-        "title": "PublishGuard: Ignore This Warning"
+        "title": "PublishGuard: Ignore This Problem"
       },
       {
         "command": "publishguard.suppressRuleInFile",
@@ -101,7 +101,7 @@
       },
       {
         "command": "publishguard.suppressRuleEverywhere",
-        "title": "PublishGuard: Ignore This Type of Warning"
+        "title": "PublishGuard: Ignore This Type of Problem"
       },
       {
         "command": "publishguard.addToPublishGuardIgnore",
@@ -180,6 +180,11 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically scan after saving package.json"
+        },
+        "publishguard.rescanAfterIgnore": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically rescan after an issue or path is ignored. Disable to apply ignore changes on the next scan."
         },
         "publishguard.blockPublishOnError": {
           "type": "boolean",
@@ -388,7 +393,7 @@
     "package": "vsce package --no-dependencies"
   },
   "dependencies": {
-    "@publishguard/core": "0.5.0"
+    "@publishguard/core": "0.6.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
